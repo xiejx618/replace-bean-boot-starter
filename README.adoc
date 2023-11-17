@@ -15,7 +15,7 @@
 . AOP扩展逻辑需要考虑入参,出参,方法名编写.而继承方式是重写方法,使用IDE工具直接override method就可以自动生成;
 . AOP扩展难理解,调用顺序也不直观;而子类重写方法内前后或中间调用父类的多个方法都非常方便,也容易得到返回值,逻辑简单易懂;
 
-另外子类重写方法扩展同样要求public或protected实例方法.AOP实现也有此限制.综上原因,实现子类替换BeanStarter是个不错方案.实现结果：不依赖公司现有组件,与AOP扩展不冲突.如果认同此扩展方式,项目可逐步替换为此方式,老项目也可以使用.
+另外子类重写方法扩展同样要求public或protected实例方法.AOP实现也有此限制.综上原因,实现子类替换BeanStarter是个不错方案.实现结果：只依赖spring-boot-starter,与AOP扩展不冲突.如果认同此扩展方式,项目可逐步替换为此方式,老项目也可以使用.
 
 == 使用
 === 引入starter依赖
@@ -68,8 +68,16 @@ packages和replaceBeanMap必须要配置一个,也可以两个都配.
 . 扩展代码应统一放到一个包下面, 方便代码管理. 应尽详细指定具体包,缩小扫描范围,加快扫描速度;
 . 配置方式建议使用replace.packages指定替换类查找,当不满足时,再考虑使用replaceBeanMap. @Replace可以不指定BeanName和排序值时,建议不指定.
 
+== 常见问题
+=== BeanFactoryPostProcessor和BeanPostProcessor Bean能不能替换?
+BeanFactoryPostProcessor和PriOrdered BeanPostProcessor都不能替换,但非PriOrdered BeanPostProcessor(即Ordered或者没有Ordered的BeanPostProcessor)都可以替换.另外,@Configuration类也可能可以替换,但不建议这么做.
+
+=== 支持JDK和SpringBoot那些版本?
+JDK1.8和JDK17都支持; SpringBoot2.5.15,SpringBoot2.7.17,SpringBoot3.1.5都支持;其它版本没测过.
+
+
 == 需求分析
-第三,四部分内容为原理性(可选看).需求有几个点:1.获取当前Bean必须替换后的Bean;2.如果某个Bean依赖之前的Bean,那之前的Bean也必须改为替换后的Bean;3.无论单例或多例Bean,都能够替换生效;4.一个Bean可以被多次替换;5.通过组件方便配置使用;
+第四,五部分内容为原理性(可选看).需求有几个点:1.获取当前Bean必须替换后的Bean;2.如果某个Bean依赖之前的Bean,那之前的Bean也必须改为替换后的Bean;3.无论单例或多例Bean,都能够替换生效;4.一个Bean可以被多次替换;5.通过组件方便配置使用;
 
 针对某个bean的生命周期主要如下:
 ----
@@ -130,7 +138,8 @@ finishRefresh();
 . 所以,范围缩小在阶段4-6找切入点(回调或勾子).针对已有的切入点,最终找出InstantiationAwareBeanPostProcessor的postProcessBeforeInstantiation阶段修改逻辑比较适合. 毫无疑问,使用Spring Boot Starter实现插件比较合适;
 
 == 实现细节(问题考虑)
-1.核心是修改Bean的注册定义的BeanClass,后续就直接使用替换后BeanClass实现化. 另外,InstantiationAwareBeanPostProcessor的postProcessBeforeInstantiation返回实例化对象也是一种思路. 只是选择了修改Bean定义更靠前,经验上觉得更可靠.
+. 核心是修改Bean的注册定义的BeanClass,后续就直接使用替换后BeanClass实现化. 另外,InstantiationAwareBeanPostProcessor的postProcessBeforeInstantiation返回实例化对象也是一种思路. 只是选择了修改Bean定义更靠前,经验上觉得更可靠.
++
 ----
 public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
     if (replaceBeanMap.containsKey(beanName)) {
@@ -141,8 +150,9 @@ public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName
 }
 ----
 
-2.bean实例化用的是MergedBeanDefinition,所以使用beanFactory.getMergedBeanDefinition,而不是beanFactory.getBeanDefinition
+. bean实例化用的是MergedBeanDefinition,所以使用beanFactory.getMergedBeanDefinition,而不是beanFactory.getBeanDefinition
 
-3.考虑应将bean替换信息尽早注册到ReplaceBeanBeanPostProcessor#replaceBeanMap.所以定义 ReplaceBeanBeanPostProcessor也是一个BeanFactoryPostProcessor.在它实例化的时候,加载bean替换信息. 在它实例化的时候,由于无法使用ConfigurationPropertiesBindingPostProcessor绑定,所以使用Binder.get(environment).bind主动绑定一下,并且定义为PriorityOrdered是期望它更早注册到beanFactory的beanPostProcessor列表中. 如果想替换PriOrdered BeanPostProcessor bean,因为ReplaceBeanBeanPostProcessor还未注册到beanFactory则无法适用, 但能正常适用定义了Ordered或非Ordered BeanPostProcessor Bean替换.
+. 考虑应将bean替换信息尽早注册到ReplaceBeanBeanPostProcessor#replaceBeanMap.所以定义 ReplaceBeanBeanPostProcessor也是一个BeanFactoryPostProcessor.在它实例化的时候,加载bean替换信息. 在它实例化的时候,由于无法使用ConfigurationPropertiesBindingPostProcessor绑定,所以使用Binder.get(environment).bind主动绑定一下,并且定义为PriorityOrdered是期望它更早注册到beanFactory的beanPostProcessor列表中. 如果想替换PriOrdered BeanPostProcessor bean,因为ReplaceBeanBeanPostProcessor还未注册到beanFactory则无法适用, 但能正常适用定义了Ordered或非Ordered BeanPostProcessor Bean替换.
 
-4.如果一个bean被多个子类继承,或多层次继承.每次注册时,如果已注册了某个bean的替换则会比较排序,只有当前排序值比现值还小,才会替换.
+. 如果一个bean被多个子类继承,或多层次继承.每次注册时,如果已注册了某个bean的替换则会比较排序,只有当前排序值比现值还小,才会替换.
+
