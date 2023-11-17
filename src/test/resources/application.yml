@@ -1,0 +1,8 @@
+replace:
+  # 默认值true, 是否启用功能
+  enabled: true
+  # 扫描替换Bean包名:可为空, 多个时使用逗号分割
+  packages: io.github.xiejx618.replace.demo.ext
+  # 枚举指定替换
+  replaceMap:
+      helloService: io.github.xiejx618.replace.demo.ext.HelloServiceExt:123
