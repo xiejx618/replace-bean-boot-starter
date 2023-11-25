@@ -5,6 +5,7 @@ import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.InstantiationAwareBeanPostProcessor;
+import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.beans.factory.support.AbstractBeanFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.PriorityOrdered;
@@ -43,8 +44,13 @@ public class ReplaceBeanPostProcessor implements BeanFactoryAware, Instantiation
     @Override
     public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
         if (replaceMap.containsKey(beanName)) {
-            BeanDefinition mergedBeanDefinition = beanFactory.getMergedBeanDefinition(beanName);//如果bean不存在时,会抛异常
+            //如果bean不存在时,会抛异常
+            BeanDefinition mergedBeanDefinition = beanFactory.getMergedBeanDefinition(beanName);
             mergedBeanDefinition.setBeanClassName(replaceMap.get(beanName).getBeanClass());
+            if (mergedBeanDefinition instanceof AbstractBeanDefinition) {
+                //为了兼容spring aot,强制不使用InstanceSupplier
+                ((AbstractBeanDefinition) mergedBeanDefinition).setInstanceSupplier(null);
+            }
         }
         return InstantiationAwareBeanPostProcessor.super.postProcessBeforeInstantiation(beanClass, beanName);
     }
