@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "io.github.xiejx618"
-version = "0.0.1"
+version = "0.0.2"
 
 java {
     toolchain {
@@ -63,8 +63,8 @@ publishing {
             val snapshotsRepoUrl = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
             url = if (version.toString().endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl
             credentials {
-                username = System.getenv("OSSRH_USERNAME")
-                password = System.getenv("OSSRH_PASSWORD")
+                username = project.property("OSSRH_USERNAME").toString()
+                password = project.property("OSSRH_PASSWORD").toString()
             }
         }
     }
