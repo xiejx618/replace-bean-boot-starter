@@ -102,7 +102,7 @@ public class ReplaceBeanPostProcessor implements BeanFactoryAware, Instantiation
             try {
                 Resource[] resources = resourcePatternResolver.getResources(
                         ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX
-                                + ClassUtils.convertClassNameToResourcePath(pkg.trim()) + "**/*.class");
+                                + ClassUtils.convertClassNameToResourcePath(pkg.trim()) + "/**/*.class");
                 for (Resource resource : resources) {
                     AnnotationMetadata metadata = readerFactory.getMetadataReader(resource).getAnnotationMetadata();
                     Map<String, Object> attributes = metadata.getAnnotationAttributes(Replace.class.getName());

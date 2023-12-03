@@ -44,7 +44,7 @@ public class HelloServiceExt extends HelloService {
     }
 }
 ----
-如果是自动扫描,就是指定扫描包+使用@Replace, 其中@Replace可以指定替换beanName,不指定时则使用父类名推断,排序用于一个bean被多次扩展时,选择一个更小值的类;也可以在replace.replaceBeanMap配置,key指定替换beanName,value指定替换bean的全限定名或者后面追加英文冒号和排序值;
+如果是自动扫描,就是指定扫描包+使用@Replace, 其中@Replace可以指定替换beanName,不指定时则使用父类名推断,排序用于一个bean被多次扩展时,选择一个更小值的类;也可以在replace.replaceMap配置,key指定替换beanName,value指定替换bean的全限定名或者后面追加英文冒号和排序值;
 
 === 配置
 
@@ -53,20 +53,20 @@ public class HelloServiceExt extends HelloService {
 replace:
   enabled: true
   packages: io.github.xiejx618.demo.ext
-  replaceBeanMap:
+  replaceMap:
     helloService: io.github.xiejx618.demo.ext.HelloServiceExt
 ----
-packages和replaceBeanMap必须要配置一个,也可以两个都配.
+packages和replaceMap必须要配置一个,也可以两个都配.
 
 . enabled:是否开启bean替换功能.默认值为true;
 . packages:扫描替换Bean包名:可为空, 多个包时使用英文逗号分割; 查找的类可以是当前包或多层子包;
-. replaceBeanMap:枚举为指定替换bean的map结构.key是要替换的beanName,value是被使用替换的bean的全限定名或者后面追加英文冒号和排序值,如:io.github.xiejx618.demo.ext.HelloServiceExt:100;
+. replaceMap:枚举为指定替换bean的map结构.key是要替换的beanName,value是被使用替换的bean的全限定名或者后面追加英文冒号和排序值,如:io.github.xiejx618.demo.ext.HelloServiceExt:100;
 
 
 === 最佳实践
 . 源码开发逻辑应将可能要扩展的实例成员(包括字段与方法)定义为protected或public,供子类使用.
 . 扩展代码应统一放到一个包下面, 方便代码管理. 应尽详细指定具体包,缩小扫描范围,加快扫描速度;
-. 配置方式建议使用replace.packages指定替换类查找,当不满足时,再考虑使用replaceBeanMap. @Replace可以不指定BeanName和排序值时,建议不指定.
+. 配置方式建议使用replace.packages指定替换类查找,当不满足时,再考虑使用replaceMap. @Replace可以不指定BeanName和排序值时,建议不指定.
 
 == 常见问题
 === BeanFactoryPostProcessor和BeanPostProcessor Bean能不能替换?
@@ -142,9 +142,9 @@ finishRefresh();
 +
 ----
 public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
-    if (replaceBeanMap.containsKey(beanName)) {
+    if (replaceMap.containsKey(beanName)) {
         BeanDefinition mergedBeanDefinition = beanFactory.getMergedBeanDefinition(beanName);//如果bean不存在时,会抛异常
-        mergedBeanDefinition.setBeanClassName(replaceBeanMap.get(beanName).getBeanClass());
+        mergedBeanDefinition.setBeanClassName(replaceMap.get(beanName).getBeanClass());
     }
     return InstantiationAwareBeanPostProcessor.super.postProcessBeforeInstantiation(beanClass, beanName);
 }
@@ -152,7 +152,7 @@ public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName
 
 . bean实例化用的是MergedBeanDefinition,所以使用beanFactory.getMergedBeanDefinition,而不是beanFactory.getBeanDefinition
 
-. 考虑应将bean替换信息尽早注册到ReplaceBeanBeanPostProcessor#replaceBeanMap.所以定义 ReplaceBeanBeanPostProcessor也是一个BeanFactoryPostProcessor.在它实例化的时候,加载bean替换信息. 在它实例化的时候,由于无法使用ConfigurationPropertiesBindingPostProcessor绑定,所以使用Binder.get(environment).bind主动绑定一下,并且定义为PriorityOrdered是期望它更早注册到beanFactory的beanPostProcessor列表中. 如果想替换PriOrdered BeanPostProcessor bean,因为ReplaceBeanBeanPostProcessor还未注册到beanFactory则无法适用, 但能正常适用定义了Ordered或非Ordered BeanPostProcessor Bean替换.
+. 考虑应将bean替换信息尽早注册到ReplaceBeanPostProcessor#replaceMap.所以定义 ReplaceBeanPostProcessor也是一个BeanFactoryPostProcessor.在它实例化的时候,加载bean替换信息. 在它实例化的时候,由于无法使用ConfigurationPropertiesBindingPostProcessor绑定,所以使用Binder.get(environment).bind主动绑定一下,并且定义为PriorityOrdered是期望它更早注册到beanFactory的beanPostProcessor列表中. 如果想替换PriOrdered BeanPostProcessor bean,因为ReplaceBeanPostProcessor还未注册到beanFactory则无法适用, 但能正常适用定义了Ordered或非Ordered BeanPostProcessor Bean替换.
 
 . 如果一个bean被多个子类继承,或多层次继承.每次注册时,如果已注册了某个bean的替换则会比较排序,只有当前排序值比现值还小,才会替换.
 

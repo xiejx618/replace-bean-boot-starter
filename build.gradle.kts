@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "io.github.xiejx618"
-version = "0.0.2"
+version = "0.0.3"
 
 java {
     toolchain {
@@ -13,6 +13,14 @@ java {
     }
     withJavadocJar()
     withSourcesJar()
+}
+
+tasks.withType<JavaCompile> {
+    options.encoding = "UTF-8"
+}
+
+tasks.withType<Javadoc>() {
+    options.encoding = "UTF-8"
 }
 
 repositories {
@@ -72,8 +80,4 @@ publishing {
 
 signing {
     sign(publishing.publications["mavenJava"])
-}
-
-tasks.javadoc {
-    options.encoding = "UTF-8"
 }
