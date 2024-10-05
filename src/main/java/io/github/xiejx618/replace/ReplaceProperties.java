@@ -1,11 +1,9 @@
 package io.github.xiejx618.replace;
 
-import java.util.Map;
 public class ReplaceProperties {
     private boolean enabled = true;
-
     private String packages;
-    private Map<String, String> replaceMap;
+    private String factories;
 
     public boolean isEnabled() {
         return enabled;
@@ -23,11 +21,11 @@ public class ReplaceProperties {
         this.packages = packages;
     }
 
-    public Map<String, String> getReplaceMap() {
-        return replaceMap;
+    public String getFactories() {
+        return factories;
     }
 
-    public void setReplaceMap(Map<String, String> replaceMap) {
-        this.replaceMap = replaceMap;
+    public void setFactories(String factories) {
+        this.factories = factories;
     }
 }

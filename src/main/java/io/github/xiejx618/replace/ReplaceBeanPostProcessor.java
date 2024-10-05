@@ -1,101 +1,135 @@
 package io.github.xiejx618.replace;
 
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.BeanFactory;
-import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.config.InstantiationAwareBeanPostProcessor;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
-import org.springframework.beans.factory.support.AbstractBeanFactory;
-import org.springframework.core.Ordered;
-import org.springframework.core.PriorityOrdered;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.core.type.classreading.CachingMetadataReaderFactory;
-import org.springframework.util.Assert;
-import org.springframework.util.ClassUtils;
-import org.springframework.util.StringUtils;
+import org.springframework.util.*;
 
 import java.beans.Introspector;
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.*;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
- * 处理所有Bean实例化前先检查是否有替换子类实现.如果有,就做替换.
- * 注册成PriorityOrdered BeanPostProcessor是为了更早注册到beanFactory.
- * 而在实例化ReplaceBeanPostProcessor Bean,就会准备好bean替换信息, 然后就会注册到beanFactory
+ * 处理所有Bean实例化前先检查是否有替换bean配置.如果有,就做替换.
  */
-public class ReplaceBeanPostProcessor implements BeanFactoryAware, InstantiationAwareBeanPostProcessor, PriorityOrdered {
+public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProcessor {
 
-    private static final Map<String, BeanInfo> replaceMap = new HashMap<>();
+    private static final Map<String, ReplaceInfo> replaceMap = new HashMap<>();
 
-    private AbstractBeanFactory beanFactory;
+    private final ConfigurableBeanFactory beanFactory;
 
-    @Override
-    public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
-        Assert.isTrue(beanFactory instanceof AbstractBeanFactory,
-                "ReplaceBeanPostProcessor注入beanFactory失败:类型非AbstractBeanFactory");
-        this.beanFactory = (AbstractBeanFactory) beanFactory;
+    public ReplaceBeanPostProcessor(ConfigurableBeanFactory beanFactory) {
+        this.beanFactory = beanFactory;
     }
 
     @Override
     public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
-        if (replaceMap.containsKey(beanName)) {
-            //如果bean不存在时,会抛异常
-            BeanDefinition mergedBeanDefinition = beanFactory.getMergedBeanDefinition(beanName);
-            mergedBeanDefinition.setBeanClassName(replaceMap.get(beanName).getBeanClass());
-            if (mergedBeanDefinition instanceof AbstractBeanDefinition) {
-                //为了兼容spring aot,强制不使用InstanceSupplier
-                ((AbstractBeanDefinition) mergedBeanDefinition).setInstanceSupplier(null);
+        ReplaceInfo replaceInfo = replaceMap.get(beanName);
+        if (replaceInfo != null) {
+            BeanDefinition beanDefinition = beanFactory.getMergedBeanDefinition(beanName);
+            Method method = replaceInfo.getMethod();
+            Object factory = replaceInfo.getFactory();
+            String clazz = replaceInfo.getClazz();
+            if (method != null && factory != null) {
+                //通过工厂方法注册
+                if (beanDefinition instanceof AbstractBeanDefinition) {
+                    Supplier<?> instanceSupplier = () -> ReflectionUtils.invokeMethod(method, factory);
+                    ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(instanceSupplier);
+                } else {
+                    throw new IllegalStateException("不支持的BeanDefinition类型:" + beanDefinition.getClass());
+                }
+            } else if (StringUtils.hasText(clazz)) {
+                //通过类扫描注册
+                beanDefinition.setBeanClassName(clazz);
+                if (beanDefinition instanceof AbstractBeanDefinition) {
+                    //为了兼容spring aot,强制不使用InstanceSupplier
+                    ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(null);
+                }
+            } else {
+                throw new IllegalStateException("supplier和clazz为空,替换失败");
             }
         }
         return InstantiationAwareBeanPostProcessor.super.postProcessBeforeInstantiation(beanClass, beanName);
     }
 
-    @Override
-    public int getOrder() {
-        return Ordered.LOWEST_PRECEDENCE;
+    /**
+     * 通过工厂方法注册
+     *
+     * @param context   上下文
+     * @param factories 来源工厂实例
+     */
+    public static void registerFromFactory(ConfigurableApplicationContext context, List<Object> factories) {
+        if (CollectionUtils.isEmpty(factories)) {
+            return;
+        }
+        ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
+        ConfigurableEnvironment environment = context.getEnvironment();
+        for (Object factory : factories) {
+            List<Method> methods = Arrays.stream(factory.getClass().getDeclaredMethods())
+                    .filter(m -> Modifier.isPublic(m.getModifiers()) && !Modifier.isStatic(m.getModifiers())
+                            && m.isAnnotationPresent(Replace.class)).collect(Collectors.toList());
+            if (methods.isEmpty()) {
+                continue;
+            }
+            injectFactoryFields(factory, beanFactory, environment);
+            for (Method m : methods) {
+                Replace annotation = m.getAnnotation(Replace.class);
+                String beanName = StringUtils.hasText(annotation.value()) ? annotation.value() : m.getName();
+                ReplaceInfo replaceInfo = replaceMap.get(beanName);
+                int order = annotation.order();
+                if (replaceInfo == null || order < replaceInfo.getOrder()) {
+                    replaceMap.put(beanName, new ReplaceInfo(order, m, factory));
+                }
+            }
+        }
     }
 
     /**
-     * 断言替换Bean信息是否为空,并且打印替换Bean信息
+     * 注入工厂的beanFactory和environment
      *
-     * @param assertEmpty 是否断言为空
-     * @return 打印信息
+     * @param factory     替换工厂实例
+     * @param beanFactory bean工厂
+     * @param environment 环境
      */
-    public static String replaceMapToString(boolean assertEmpty) {
-        Assert.isTrue(!assertEmpty || !replaceMap.isEmpty(),
-                "已启用替换Bean,但没有找到扩展子类,请检查配置.");
-        StringBuilder sb = new StringBuilder("替换Bean如下:\n");
-        replaceMap.forEach((k, v) -> sb.append(v.getBeanClass()).append("[").append(v.getOrder())
-                .append("]替换了").append(k).append(";\n"));
-        return sb.toString();
+    private static void injectFactoryFields(Object factory, ConfigurableListableBeanFactory beanFactory,
+                                            ConfigurableEnvironment environment) {
+        Field[] fields = factory.getClass().getDeclaredFields();
+        for (Field field : fields) {
+            Class<?> type = field.getType();
+            if (type.isAssignableFrom(ConfigurableListableBeanFactory.class)) {
+                ReflectionUtils.makeAccessible(field);
+                ReflectionUtils.setField(field, factory, beanFactory);
+            } else if (type.isAssignableFrom(ConfigurableEnvironment.class)) {
+                ReflectionUtils.makeAccessible(field);
+                ReflectionUtils.setField(field, factory, environment);
+            }
+        }
     }
-
-    /**
-     * 单个注册
-     *
-     * @param beanName     bean名称
-     * @param replaceClass 替换类
-     */
-    public static void register(String beanName, String replaceClass) {
-        int index = replaceClass.lastIndexOf(':');
-        BeanInfo beanInfo = (index == -1) ? new BeanInfo(replaceClass, Replace.DEFAULT) :
-                new BeanInfo(replaceClass.substring(0, index), Integer.parseInt(replaceClass.substring(index + 1)));
-        register(beanName, beanInfo);
-    }
-
 
     /**
      * 通过包名注册
      *
      * @param packages 包名
      */
-    public static void registerScan(String... packages) {
-        Assert.isTrue(packages != null && packages.length > 0, "替换bean扫描路径不能为空");
+    public static void registerFromScan(Collection<String> packages) {
+        if (CollectionUtils.isEmpty(packages)) {
+            return;
+        }
         PathMatchingResourcePatternResolver resourcePatternResolver = new PathMatchingResourcePatternResolver();
         CachingMetadataReaderFactory readerFactory = new CachingMetadataReaderFactory();
         for (String pkg : packages) {
@@ -109,8 +143,12 @@ public class ReplaceBeanPostProcessor implements BeanFactoryAware, Instantiation
                     if (attributes != null) {
                         String superClassName = metadata.getSuperClassName();
                         Assert.isTrue(StringUtils.hasText(superClassName), "替换bean的类不能没有父类");
-                        register(deduceBeanName(attributes, superClassName),
-                                new BeanInfo(metadata.getClassName(), (int) attributes.get("order")));
+                        String beanName = deduceBeanName(attributes, superClassName);
+                        ReplaceInfo replaceInfo = replaceMap.get(beanName);
+                        int order = (int) attributes.get("order");
+                        if (replaceInfo == null || order < replaceInfo.getOrder()) {
+                            replaceMap.put(beanName, new ReplaceInfo(order, metadata.getClassName()));
+                        }
                     }
                 }
             } catch (Exception e) {
@@ -135,34 +173,64 @@ public class ReplaceBeanPostProcessor implements BeanFactoryAware, Instantiation
     }
 
     /**
-     * 按优先级注册
+     * 断言替换Bean信息是否为空,并且打印替换Bean信息
      *
-     * @param beanName bean名称
-     * @param beanInfo 替换类信息
+     * @param assertEmpty 是否断言为空
+     * @return 打印信息
      */
-    private static void register(String beanName, BeanInfo beanInfo) {
-        if (!replaceMap.containsKey(beanName) || beanInfo.getOrder() <= replaceMap.get(beanName).getOrder()) {
-            replaceMap.put(beanName, beanInfo);
-        }
+    public static String replaceMapToString(boolean assertEmpty) {
+        Assert.isTrue(!assertEmpty || !replaceMap.isEmpty(),
+                "已启用Bean替换,但没有找到替换配置,请重新检查配置或者关闭Bean替换.");
+        StringBuilder sb = new StringBuilder("替换Bean如下:\n");
+        replaceMap.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(e -> sb.append("  ")
+                .append(e.getValue().print()).append("替换了").append(e.getKey()).append(";\n"));
+        return sb.toString();
     }
 
-
-    static class BeanInfo implements Serializable {
-
-        private final String beanClass;
+    static class ReplaceInfo implements Serializable {
+        //顺序
         private final int order;
-
-        public String getBeanClass() {
-            return beanClass;
-        }
+        //实例化工厂方法和工厂实例
+        private final Method method;
+        private final Object factory;
+        //实例class
+        private final String clazz;
 
         public int getOrder() {
             return order;
         }
 
-        public BeanInfo(String beanClass, int order) {
-            this.beanClass = beanClass;
+        public Method getMethod() {
+            return method;
+        }
+
+        public Object getFactory() {
+            return factory;
+        }
+
+        public String getClazz() {
+            return clazz;
+        }
+
+        //通过clazz方式
+        public ReplaceInfo(int order, String clazz) {
             this.order = order;
+            this.clazz = clazz;
+            this.method = null;
+            this.factory = null;
+        }
+
+        //通过工厂方式
+        public ReplaceInfo(int order, Method method, Object factory) {
+            this.order = order;
+            this.method = method;
+            this.factory = factory;
+            this.clazz = null;
+        }
+
+        public String print() {
+            return (method != null && factory != null ? factory.getClass().getName() + "#" + method.getName()
+                    : clazz) + "[" + order + "]";
         }
     }
 }

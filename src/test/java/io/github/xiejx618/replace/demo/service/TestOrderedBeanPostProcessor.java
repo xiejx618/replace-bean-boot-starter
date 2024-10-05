@@ -6,10 +6,10 @@ import org.springframework.stereotype.Component;
 
 
 @Component
-public class TestBeanPostProcessor implements BeanPostProcessor, Ordered {
+public class TestOrderedBeanPostProcessor implements BeanPostProcessor, Ordered {
 
     public void test(){
-        System.out.println("TestBeanPostProcessor = " + true);
+        System.out.println("TestOrderedBeanPostProcessor = " + true);
     }
 
     @Override

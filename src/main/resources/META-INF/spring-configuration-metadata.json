@@ -5,19 +5,19 @@
       "type": "java.lang.Boolean",
       "sourceType": "io.github.xiejx618.replace.ReplaceProperties",
       "defaultValue": true,
-      "description": "是否启用替换bean."
+      "description": "是否启用替换bean. 只取优先级最高配置决定是否开启"
     },
     {
       "name": "replace.packages",
       "type": "java.lang.String",
       "sourceType": "io.github.xiejx618.replace.ReplaceProperties",
-      "description": "扫描替换Bean包名:可为空, 多个时使用英文逗号分割."
+      "description": "扫描替换Bean包名:可为空, 多个时使用英文逗号分割. 多个配置时, 则叠加"
     },
     {
-      "name": "replace.replaceMap",
-      "type": "java.util.Map<java.lang.String,java.lang.String>",
+      "name": "replace.factories",
+      "type": "java.lang.String",
       "sourceType": "io.github.xiejx618.replace.ReplaceProperties",
-      "description": "key指定替换beanName, value指定替换bean的全限定名或者后面追加英文冒号和排序值."
+      "description": "替换工厂配置类:可为空, 多个时使用英文逗号分割. 多个配置时, 则叠加"
     }
   ],
   "hints": []

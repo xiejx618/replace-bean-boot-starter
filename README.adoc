@@ -5,20 +5,14 @@
 :sectnums:
 :sectnumlevels: 5
 
+一般使用只看背景,使用和常见问题部分即可. 如果需要详细了解原理,可深入看需求分析与实现细节.
+
 == 背景
-项目二开扩展逻辑不可避免,Aop实现的扩展相比子类重写方法扩展, 有以下几个缺点:
-
-. AOP扩展需要改为xThis调用,往往要改源码,已是代码入侵行为; 另外xThis是自身注入自己,易引起循环依赖;
-. 相对继承实现,AOP扩展性能损失更大;
-. 如果源码扩展更改了方法名, AOP扩展逻辑不易被发现错误;
-. AOP扩展比较灵活,导致扩展代码可能分布多处,扩展不易管理,也不便查找定位;
-. AOP扩展逻辑需要考虑入参,出参,方法名编写.而继承方式是重写方法,使用IDE工具直接override method就可以自动生成;
-. AOP扩展难理解,调用顺序也不直观;而子类重写方法内前后或中间调用父类的多个方法都非常方便,也容易得到返回值,逻辑简单易懂;
-
-另外子类重写方法扩展同样要求public或protected实例方法.AOP实现也有此限制.综上原因,实现子类替换BeanStarter是个不错方案.实现结果：只依赖spring-boot-starter,与AOP扩展不冲突.如果认同此扩展方式,项目可逐步替换为此方式,老项目也可以使用.
+项目二开扩展逻辑不可避免,当前很多项目都基于spring boot,所以可以基于spring bean替换实现逻辑替换,达到扩展逻辑的目的.
 
 == 使用
 === 引入starter依赖
+replace-bean.version可选用最新版本.
 [source,xml]
 ----
 <dependency>
@@ -28,10 +22,40 @@
 </dependency>
 ----
 
-=== 继承父类编写扩展逻辑
+=== 注册
+==== 方式一：在工厂方法上使用@Replace注解
 [source,java]
 ----
-@Replace
+//1.继承父类重写方法扩展逻辑
+public class HelloServiceExt extends HelloService {
+
+    public void sayHello() {
+        System.out.println("sub hello world!");
+        test();
+    }
+
+    private void test() {
+        System.out.println("sub HelloService.test");
+    }
+}
+
+//2.在工厂方法上使用@Replace注解注册
+public class ReplaceBeanConfig {
+    private BeanFactory beanFactory;
+    private Environment environment;
+
+    @Replace(order = -2)
+    public HelloService helloService() {
+        return new HelloServiceExt();
+    }
+}
+----
+上面的beanFactory和environment会自动注入,供实例bean时使用.
+
+==== 方法二：在扩展类上直接使用@Replace注解
+[source,java]
+----
+@Replace(order = -2)
 public class HelloServiceExt extends HelloService {
 
     public void sayHello() {
@@ -44,41 +68,41 @@ public class HelloServiceExt extends HelloService {
     }
 }
 ----
-如果是自动扫描,就是指定扫描包+使用@Replace, 其中@Replace可以指定替换beanName,不指定时则使用父类名推断,排序用于一个bean被多次扩展时,选择一个更小值的类;也可以在replace.replaceMap配置,key指定替换beanName,value指定替换bean的全限定名或者后面追加英文冒号和排序值;
 
 === 配置
-
+放在resources/的application.yaml中配置文件或配置中心中配置.
 [source,yaml]
 ----
 replace:
+  # 默认值true, 是否启用功能
   enabled: true
-  packages: io.github.xiejx618.demo.ext
-  replaceMap:
-    helloService: io.github.xiejx618.demo.ext.HelloServiceExt
+  # 扫描替换Bean包名:可为空, 多个时使用逗号分割
+  packages: io.github.xiejx618.replace.demo.ext
+  # 替换工厂配置类:可为空, 多个时使用英文逗号分割.
+  factories: io.github.xiejx618.replace.demo.ReplaceBeanConfig
 ----
-packages和replaceMap必须要配置一个,也可以两个都配.
-
-. enabled:是否开启bean替换功能.默认值为true;
-. packages:扫描替换Bean包名:可为空, 多个包时使用英文逗号分割; 查找的类可以是当前包或多层子包;
-. replaceMap:枚举为指定替换bean的map结构.key是要替换的beanName,value是被使用替换的bean的全限定名或者后面追加英文冒号和排序值,如:io.github.xiejx618.demo.ext.HelloServiceExt:100;
 
 
 === 最佳实践
 . 源码开发逻辑应将可能要扩展的实例成员(包括字段与方法)定义为protected或public,供子类使用.
-. 扩展代码应统一放到一个包下面, 方便代码管理. 应尽详细指定具体包,缩小扫描范围,加快扫描速度;
-. 配置方式建议使用replace.packages指定替换类查找,当不满足时,再考虑使用replaceMap. @Replace可以不指定BeanName和排序值时,建议不指定.
-
+. 扩展代码统一放到某个包下面, 这样可以缩小扫描范围,加快扫描速度,另一方面可以快速定位扩展代码;
+. 配置方式建议使用直接在子类上使用@Replace注解,当不满足时,再考虑使用工厂方法(如果要替换@Bean声明的Bean,只能使用工厂方法). @Replace可以不指定BeanName和排序值时,建议不指定.
+.
 == 常见问题
-=== BeanFactoryPostProcessor和BeanPostProcessor Bean能不能替换?
-BeanFactoryPostProcessor和PriOrdered BeanPostProcessor都不能替换,但非PriOrdered BeanPostProcessor(即Ordered或者没有Ordered的BeanPostProcessor)都可以替换.另外,@Configuration类也可能可以替换,但不建议这么做.
+=== 适用那些项目场景?
+以Spring Boot为基础的项目, 通过@Component,@Service,@Repository,@Controller,@Bean等声明的Bean都可以替换. 其他方式注册的Bean应该通过工厂方法也可以替换.
 
-=== 支持JDK和SpringBoot那些版本?
-JDK1.8和JDK17都支持; SpringBoot2.5.15,SpringBoot2.7.17,SpringBoot3.1.5都支持;其它版本没测过.
+=== 通过@Bean声明的Bean如何替换?
+此类Bean实例时不是通过bean定义的beanClass实例化,而是通过bean工厂方法实例化,工厂实例化方式优先于beanClass实例化,即使替换了beanClass也无法替换bean逻辑. 所以此类Bean可以通过工厂方法实现替换.
+
+=== 支持JDK,SpringBoot那些版本,Spring AOT是否也支持?
+JDK1.8和JDK17已验证可行; SpringBoot2.5.15,SpringBoot2.7.17,SpringBoot3.1.5已验证可行; Spring AOT也验证可行; 没验证的版本理论上也可行.
 
 
 == 需求分析
-第四,五部分内容为原理性(可选看).需求有几个点:1.获取当前Bean必须替换后的Bean;2.如果某个Bean依赖之前的Bean,那之前的Bean也必须改为替换后的Bean;3.无论单例或多例Bean,都能够替换生效;4.一个Bean可以被多次替换;5.通过组件方便配置使用;
+需求分析和实现细节为选看内容.需求有几点:a.获取当前Bean必须替换后的Bean; b.如果某个Bean依赖之前的Bean,那之前的Bean也必须改为替换后的Bean; c.无论单例或多例Bean,都能够替换生效; d.一个Bean可以被多次替换; e.通过组件方便配置使用;
 
+=== 寻找替换切入点
 针对某个bean的生命周期主要如下:
 ----
 阶段1：Bean元信息配置阶段
@@ -135,16 +159,80 @@ finishRefresh();
 . Bean的生命周期并不是对齐上面过程, 因此并不能简单只看上下文运行过程.
 . Bean的注册可能在上面过程的beanFactory准备好后的任意某个点，bean的初始化(getBean)也有可能出现在上面过程的某个点.
 . 焦点在于Bean的生命周期实例化之前阶段(上面的阶段6),上面的阶段1-3不在getBean内.
-. 所以,范围缩小在阶段4-6找切入点(回调或勾子).针对已有的切入点,最终找出InstantiationAwareBeanPostProcessor的postProcessBeforeInstantiation阶段修改逻辑比较适合. 毫无疑问,使用Spring Boot Starter实现插件比较合适;
+. 所以,范围缩小在阶段4-6找切入点(回调或勾子). 针对已有的切入点,最终找出InstantiationAwareBeanPostProcessor的postProcessBeforeInstantiation阶段修改逻辑比较适合.
+
+只有向spring容器注册了InstantiationAwareBeanPostProcessor,getBean时才会让注入的逻辑生效且越早越好.
+
+=== 替换bean核心
+方式一:通过instanceSupplier自定义直接的实例给spring.这种方式更强大.spring是优先通过这种方式获取bean实例.
+
+方式二:通过修改Bean的注册定义的Bean Class,后续就直接使用替换后BeanClass通过反射的方式实例化.这种方式很多时候是比较简单,但是如果原来的Bean是工厂方式的话,就无法直接替换了.
+
+=== 如何让切入点生效
+结合spring boot实现插件比较合适, 所以回到spring boot的启动过程org.springframework.boot.SpringApplication.run(java.lang.String...)
+----
+//....
+// 1.封装启动参数,准备环境,打印banner
+ApplicationArguments applicationArguments = new DefaultApplicationArguments(args);
+ConfigurableEnvironment environment = prepareEnvironment(listeners, bootstrapContext, applicationArguments);
+configureIgnoreBeanInfo(environment);
+Banner printedBanner = printBanner(environment);
+// 2.创建上下文
+context = createApplicationContext();
+context.setApplicationStartup(this.applicationStartup);
+// 3.准备上下文,刷新上下文
+prepareContext(bootstrapContext, context, environment, listeners, applicationArguments, printedBanner);
+refreshContext(context);
+// 4.刷新后回调
+afterRefresh(context, applicationArguments);
+Duration timeTakenToStartup = Duration.ofNanos(System.nanoTime() - startTime);
+if (this.logStartupInfo) {
+    new StartupInfoLogger(this.mainApplicationClass).logStarted(getApplicationLog(), timeTakenToStartup);
+}
+listeners.started(context, timeTakenToStartup);
+callRunners(context, applicationArguments);
+//...
+----
+InstantiationAwareBeanPostProcessor依赖于Spring容器(BeanFactory),不能早于它的创建,所以重点关注在于上面的第3点,如果prepareContext()能满足,就不用理会refreshContext().
+----
+//...
+postProcessApplicationContext(context);
+applyInitializers(context);
+listeners.contextPrepared(context);
+bootstrapContext.close(context);
+//....
+----
+从中可以看出initializers和listeners是关键,这里提供了回调钩子. 通过SPI机制扩展, 这里选用了org.springframework.context.ApplicationContextInitializer实现配置和spring容器的获取,最后将InstantiationAwareBeanPostProcessor注册到spring容器.
 
 == 实现细节(问题考虑)
-. 核心是修改Bean的注册定义的BeanClass,后续就直接使用替换后BeanClass实现化. 另外,InstantiationAwareBeanPostProcessor的postProcessBeforeInstantiation返回实例化对象也是一种思路. 只是选择了修改Bean定义更靠前,经验上觉得更可靠.
+.  下面就是修改BeanDefinition的逻辑
 +
 ----
 public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
-    if (replaceMap.containsKey(beanName)) {
-        BeanDefinition mergedBeanDefinition = beanFactory.getMergedBeanDefinition(beanName);//如果bean不存在时,会抛异常
-        mergedBeanDefinition.setBeanClassName(replaceMap.get(beanName).getBeanClass());
+    ReplaceInfo replaceInfo = replaceMap.get(beanName);
+    if (replaceInfo != null) {
+        BeanDefinition beanDefinition = beanFactory.getMergedBeanDefinition(beanName);
+        Method method = replaceInfo.getMethod();
+        Object factory = replaceInfo.getFactory();
+        String clazz = replaceInfo.getClazz();
+        if (method != null && factory != null) {
+            //通过工厂方法注册
+            if (beanDefinition instanceof AbstractBeanDefinition) {
+                Supplier<?> instanceSupplier = () -> ReflectionUtils.invokeMethod(method, factory);
+                ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(instanceSupplier);
+            } else {
+                throw new IllegalStateException("不支持的BeanDefinition类型:" + beanDefinition.getClass());
+            }
+        } else if (StringUtils.hasText(clazz)) {
+            //通过类扫描注册
+            beanDefinition.setBeanClassName(clazz);
+            if (beanDefinition instanceof AbstractBeanDefinition) {
+                //为了兼容spring aot,强制不使用InstanceSupplier
+                ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(null);
+            }
+        } else {
+            throw new IllegalStateException("supplier和clazz为空,替换失败");
+        }
     }
     return InstantiationAwareBeanPostProcessor.super.postProcessBeforeInstantiation(beanClass, beanName);
 }
@@ -152,7 +240,4 @@ public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName
 
 . bean实例化用的是MergedBeanDefinition,所以使用beanFactory.getMergedBeanDefinition,而不是beanFactory.getBeanDefinition
 
-. 考虑应将bean替换信息尽早注册到ReplaceBeanPostProcessor#replaceMap.所以定义 ReplaceBeanPostProcessor也是一个BeanFactoryPostProcessor.在它实例化的时候,加载bean替换信息. 在它实例化的时候,由于无法使用ConfigurationPropertiesBindingPostProcessor绑定,所以使用Binder.get(environment).bind主动绑定一下,并且定义为PriorityOrdered是期望它更早注册到beanFactory的beanPostProcessor列表中. 如果想替换PriOrdered BeanPostProcessor bean,因为ReplaceBeanPostProcessor还未注册到beanFactory则无法适用, 但能正常适用定义了Ordered或非Ordered BeanPostProcessor Bean替换.
-
-. 如果一个bean被多个子类继承,或多层次继承.每次注册时,如果已注册了某个bean的替换则会比较排序,只有当前排序值比现值还小,才会替换.
-
+. 如果一个bean被多个子类继承,或多层次继承. 每次注册时,会比较排序,只有当前排序值比现值还小,才会替换注册,最终以优先级小的bean替换为准.
