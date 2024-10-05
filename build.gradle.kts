@@ -5,12 +5,11 @@ plugins {
 }
 
 group = "io.github.xiejx618"
-version = "0.0.4-SNAPSHOT"
+version = "0.0.5-SNAPSHOT"
 
 java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(8))
-    }
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
     withJavadocJar()
     withSourcesJar()
 }
@@ -19,17 +18,18 @@ tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
 }
 
-tasks.withType<Javadoc>() {
+tasks.withType<Javadoc> {
     options.encoding = "UTF-8"
+    (options as? CoreJavadocOptions)?.addStringOption("Xdoclint:none", "-quiet")
 }
 
 repositories {
     mavenLocal()
-    maven ("https://maven.aliyun.com/repository/public/")
+    maven("https://maven.aliyun.com/repository/public/")
 }
 
 dependencies {
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:2.7.17"))
+    implementation(platform("org.springframework.boot:spring-boot-dependencies:2.7.18"))
     implementation("org.springframework.boot:spring-boot-starter")
 }
 

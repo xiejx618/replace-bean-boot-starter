@@ -46,7 +46,7 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
             Object factory = replaceInfo.getFactory();
             String clazz = replaceInfo.getClazz();
             if (method != null && factory != null) {
-                //通过工厂方法注册
+                //通过工厂方法直接生成实例
                 if (beanDefinition instanceof AbstractBeanDefinition) {
                     Supplier<?> instanceSupplier = () -> ReflectionUtils.invokeMethod(method, factory);
                     ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(instanceSupplier);
@@ -54,14 +54,14 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
                     throw new IllegalStateException("不支持的BeanDefinition类型:" + beanDefinition.getClass());
                 }
             } else if (StringUtils.hasText(clazz)) {
-                //通过类扫描注册
+                //通过beanClass反射生成实例
                 beanDefinition.setBeanClassName(clazz);
                 if (beanDefinition instanceof AbstractBeanDefinition) {
                     //为了兼容spring aot,强制不使用InstanceSupplier
                     ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(null);
                 }
             } else {
-                throw new IllegalStateException("supplier和clazz为空,替换失败");
+                throw new IllegalStateException("method和clazz为空,替换失败");
             }
         }
         return InstantiationAwareBeanPostProcessor.super.postProcessBeforeInstantiation(beanClass, beanName);
