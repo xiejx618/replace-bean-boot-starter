@@ -126,17 +126,16 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
      *
      * @param packages 包名
      */
-    public static void registerFromScan(Collection<String> packages) {
+    public static void registerFromScan(ConfigurableApplicationContext context, Collection<String> packages) {
         if (CollectionUtils.isEmpty(packages)) {
             return;
         }
-        PathMatchingResourcePatternResolver resourcePatternResolver = new PathMatchingResourcePatternResolver();
-        CachingMetadataReaderFactory readerFactory = new CachingMetadataReaderFactory();
+        //将读取过Resource的MetadataReader缓存起来,供后面的CachingMetadataReaderFactory使用.
+        CachingMetadataReaderFactory readerFactory = new CachingMetadataReaderFactory(context);
         for (String pkg : packages) {
             try {
-                Resource[] resources = resourcePatternResolver.getResources(
-                        ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX
-                                + ClassUtils.convertClassNameToResourcePath(pkg.trim()) + "/**/*.class");
+                Resource[] resources = context.getResources(ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX
+                        + ClassUtils.convertClassNameToResourcePath(pkg.trim()) + "/**/*.class");
                 for (Resource resource : resources) {
                     AnnotationMetadata metadata = readerFactory.getMetadataReader(resource).getAnnotationMetadata();
                     Map<String, Object> attributes = metadata.getAnnotationAttributes(Replace.class.getName());

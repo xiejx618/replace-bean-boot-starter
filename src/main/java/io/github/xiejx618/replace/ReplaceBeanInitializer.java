@@ -40,7 +40,7 @@ public class ReplaceBeanInitializer implements ApplicationContextInitializer<Con
         }
         //2.获取包名和替换Bean配置, 注册替换Bean到ReplaceBeanPostProcessor;
         Config config = optimizeConfig(environment.getPropertySources());
-        ReplaceBeanPostProcessor.registerFromScan(config.packages);
+        ReplaceBeanPostProcessor.registerFromScan(context, config.packages);
         ReplaceBeanPostProcessor.registerFromFactory(context, config.factories);
 
         //3.打印替换配置.可以在此之前, 考虑提供移除配置
