@@ -21,13 +21,16 @@ public @interface Replace {
      */
     String value() default "";
 
+    /**
+     * 替换优先级默认值
+     */
     int DEFAULT = Integer.MAX_VALUE;
 
     /**
-     * 如果一个bean被多次扩展时, 就选择排序最小值的类. 可为负数.
+     * 如果一个bean被多次扩展时, 就选择排序最小值的类. 值可为负数.
      * 定义排序时, 建议选择现值减去一个小值, 比如现值为DEFAULT-10, 则可定义为DEFAULT-11.
      * 注意:对于bean已被扩展, 定义值不要和现值一样或比现值还大, 这样会导致扩展无法生效;
-     * 另外初次扩展定义不应为Integer.MIN_VALUE, 这样会导致后面无法扩展.
+     * 另外初次扩展定义不应为Integer.MIN_VALUE, 这样会导致后面无法再次扩展.
      *
      * @return 返回排序值
      */

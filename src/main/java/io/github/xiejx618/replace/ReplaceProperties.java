@@ -1,8 +1,20 @@
 package io.github.xiejx618.replace;
 
+/**
+ * 替换配置类
+ */
 public class ReplaceProperties {
+    /**
+     * 是否启用
+     */
     private boolean enabled = true;
+    /**
+     * 扫描包
+     */
     private String packages;
+    /**
+     * 工厂类
+     */
     private String factories;
 
     public boolean isEnabled() {

@@ -5,11 +5,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.boot.ansi.AnsiColor;
+import org.springframework.boot.ansi.AnsiOutput;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
-import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.MutablePropertySources;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.CollectionUtils;
@@ -39,11 +40,11 @@ public class ReplaceBeanInitializer implements ApplicationContextInitializer<Con
         }
         //2.获取包名和替换Bean配置, 注册替换Bean到ReplaceBeanPostProcessor;
         Config config = optimizeConfig(environment.getPropertySources());
-        ReplaceBeanPostProcessor.registerFromScan(config.packages);
+        ReplaceBeanPostProcessor.registerFromScan(context, config.packages);
         ReplaceBeanPostProcessor.registerFromFactory(context, config.factories);
 
         //3.打印替换配置.可以在此之前, 考虑提供移除配置
-        logger.info(ReplaceBeanPostProcessor.replaceMapToString(true));
+        logger.info(AnsiOutput.toString(AnsiColor.GREEN, ReplaceBeanPostProcessor.replaceMapToString(true)));
         //4.将ReplaceBeanPostProcessor添加到Spring容器;
         ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
         ReplaceBeanPostProcessor replaceBeanPostProcessor = new ReplaceBeanPostProcessor(beanFactory);
@@ -64,16 +65,16 @@ public class ReplaceBeanInitializer implements ApplicationContextInitializer<Con
     private static Config optimizeConfig(MutablePropertySources propertySources) {
         Set<String> packageSet = new HashSet<>();
         Set<String> factorySet = new HashSet<>();
-        propertySources.stream().filter(s -> s instanceof MapPropertySource).forEach(source -> {
-            String[] propertyNames = ((MapPropertySource) source).getPropertyNames();
-            for (String propertyName : propertyNames) {
-                if (PACKAGES.equals(propertyName)) {
-                    String value = (String) source.getProperty(propertyName);
-                    packageSet.addAll(StringUtils.commaDelimitedListToSet(value));
-                } else if (FACTORIES.equals(propertyName)) {
-                    String value = (String) source.getProperty(propertyName);
-                    factorySet.addAll(StringUtils.commaDelimitedListToSet(value));
-                }
+        propertySources.stream().forEach(source -> {
+            Object packagesProperty = source.getProperty(PACKAGES);
+            if (packagesProperty instanceof String) {
+                String value = (String) packagesProperty;
+                packageSet.addAll(StringUtils.commaDelimitedListToSet(value));
+            }
+            Object factoriesProperty = source.getProperty(FACTORIES);
+            if (factoriesProperty instanceof String) {
+                String value = (String) factoriesProperty;
+                factorySet.addAll(StringUtils.commaDelimitedListToSet(value));
             }
         });
         return new Config(packages(packageSet), factories(factorySet));
@@ -126,10 +127,10 @@ public class ReplaceBeanInitializer implements ApplicationContextInitializer<Con
             return Collections.emptyList();
         }
         ClassLoader classLoader = ClassUtils.getDefaultClassLoader();
-        return factories.stream().map(e -> {
+        return factories.stream().map(factory -> {
             try {
-                Class<?> factoryImplementationClass = ClassUtils.forName(e, classLoader);
-                return ReflectionUtils.accessibleConstructor(factoryImplementationClass, new Class[0]).newInstance();
+                Class<?> factoryClass = ClassUtils.forName(factory, classLoader);
+                return ReflectionUtils.accessibleConstructor(factoryClass, new Class[0]).newInstance();
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }

@@ -8,7 +8,7 @@
 一般使用只看背景,使用和常见问题部分即可. 如果需要详细了解原理,可深入看需求分析与实现细节.
 
 == 背景
-项目二开扩展逻辑不可避免,当前很多项目都基于spring boot,所以可以基于spring bean替换实现逻辑替换,达到扩展逻辑的目的.
+项目二开扩展逻辑不可避免,当前很多项目都基于spring boot,所以可以基于spring bean替换实现逻辑扩展.
 
 == 使用
 === 引入starter依赖
@@ -23,7 +23,7 @@ replace-bean.version可选用最新版本.
 ----
 
 === 注册
-==== 方式一：在工厂方法上使用@Replace注解
+==== 方式一：通过工厂类.在工厂方法上使用@Replace注解
 [source,java]
 ----
 //1.继承父类重写方法扩展逻辑
@@ -39,7 +39,7 @@ public class HelloServiceExt extends HelloService {
     }
 }
 
-//2.在工厂方法上使用@Replace注解注册
+//2.在工厂方法上使用@Replace注册
 public class ReplaceBeanConfig {
     private BeanFactory beanFactory;
     private Environment environment;
@@ -50,9 +50,9 @@ public class ReplaceBeanConfig {
     }
 }
 ----
-上面的beanFactory和environment会自动注入,供实例bean时使用.
+上面的beanFactory和environment会自动注入,供实例bean时使用. 此方式理论上可以替换更多的Bean.
 
-==== 方法二：在扩展类上直接使用@Replace注解
+==== 方式二：通过扫描包.在扩展子类上直接使用@Replace注解
 [source,java]
 ----
 @Replace(order = -2)
@@ -68,66 +68,47 @@ public class HelloServiceExt extends HelloService {
     }
 }
 ----
+此方式会替换bean实现化的beanClass,简单直接不用考虑如何实例化bean对象
 
 === 配置
-放在resources/的application.yaml中配置文件或配置中心中配置.
+放在spring配置文件或配置中心中配置
 [source,yaml]
 ----
 replace:
   # 默认值true, 是否启用功能
   enabled: true
-  # 扫描替换Bean包名:可为空, 多个时使用逗号分割
+  # 扫描替换Bean包名:可为空, 多个时使用英文逗号分割
   packages: io.github.xiejx618.replace.demo.ext
-  # 替换工厂配置类:可为空, 多个时使用英文逗号分割.
+  # 替换工厂配置类:可为空, 多个时使用英文逗号分割
   factories: io.github.xiejx618.replace.demo.ReplaceBeanConfig
 ----
 
 
 === 最佳实践
 . 源码开发逻辑应将可能要扩展的实例成员(包括字段与方法)定义为protected或public,供子类使用.
-. 扩展代码统一放到某个包下面, 这样可以缩小扫描范围,加快扫描速度,另一方面可以快速定位扩展代码;
-. 配置方式建议使用直接在子类上使用@Replace注解,当不满足时,再考虑使用工厂方法(如果要替换@Bean声明的Bean,只能使用工厂方法). @Replace可以不指定BeanName和排序值时,建议不指定.
-.
+. 扩展代码统一放到某个包下面, 这样可以缩小扫描范围,加快扫描速度;另一方面查阅代码时,可以快速定位扩展逻辑.
+. 优先在子类上直接使用@Replace注解,当不满足时,再考虑使用工厂方法(比如替换@Bean声明的Bean,只能使用工厂方法). @Replace可以不指定BeanName和排序值时,建议不指定.
+
 == 常见问题
 === 适用那些项目场景?
 以Spring Boot为基础的项目, 通过@Component,@Service,@Repository,@Controller,@Bean等声明的Bean都可以替换. 其他方式注册的Bean应该通过工厂方法也可以替换.
 
 === 通过@Bean声明的Bean如何替换?
-此类Bean实例时不是通过bean定义的beanClass实例化,而是通过bean工厂方法实例化,工厂实例化方式优先于beanClass实例化,即使替换了beanClass也无法替换bean逻辑. 所以此类Bean可以通过工厂方法实现替换.
+此类Bean实例时不是通过bean定义的beanClass实例化,而是通过bean工厂方法实例化,工厂实例化方式优先于beanClass实例化,即使替换了beanClass也无法替换bean逻辑. 所以此类Bean可以通过工厂方法实现替换,即是上面的方式一.
 
 === 支持JDK,SpringBoot那些版本,Spring AOT是否也支持?
 JDK1.8和JDK17已验证可行; SpringBoot2.5.15,SpringBoot2.7.17,SpringBoot3.1.5已验证可行; Spring AOT也验证可行; 没验证的版本理论上也可行.
 
+=== 使用了Spring Cloud的@RefreshScope的Bean如何替换?
+这类bean会使用原beanName注册一个代理bean,同时也会注册一个"scopedTarget.+原beanName"的目标bean.在调用代理bean的时候,最终会调用目标bean,所以替换目标bean就可以. 注册到此组件的beanName还是应使用原beanName,组件会去掉"scopedTarget."获取替换信息.
 
 == 需求分析
-需求分析和实现细节为选看内容.需求有几点:a.获取当前Bean必须替换后的Bean; b.如果某个Bean依赖之前的Bean,那之前的Bean也必须改为替换后的Bean; c.无论单例或多例Bean,都能够替换生效; d.一个Bean可以被多次替换; e.通过组件方便配置使用;
+需求分析和实现细节为选看内容,有几点需要考虑:a.从spring容器(无论是按名称还是按类型)获取当前Bean必须为替换后的Bean; b.如果某个Bean依赖之前的Bean,那之前的Bean也必须为替换后的Bean; c.无论单例或多例Bean,都应为替换后的Bean; d.一个Bean可以被多次替换;
 
 === 寻找替换切入点
 针对某个bean的生命周期主要如下:
-----
-阶段1：Bean元信息配置阶段
-阶段2：Bean元信息解析阶段
-阶段3：将Bean注册到容器中
-阶段4：BeanDefinition合并阶段
-阶段5：Bean Class加载阶段
-阶段6：Bean实例化阶段
-  Bean实例化前阶段
-  Bean实例化阶段
-阶段7：合并后的BeanDefinition处理
-阶段8：属性赋值阶段
-  Bean实例化后阶段
-  Bean属性赋值前阶段
-  Bean属性赋值阶段
-阶段9：Bean初始化阶段
-  Bean Aware接口回调阶段
-  Bean初始化前阶段
-  Bean初始化阶段
-  Bean初始化后阶段
-阶段10：所有单例bean初始化完成后阶段
-阶段11：Bean的使用阶段
-阶段12：Bean销毁前阶段
-阶段13：Bean销毁阶段
-----
+
+image::doc/image/replace.svg[]
 应用上下文主要过程如下：
 ----
 // 1.刷新上下文环境
@@ -166,7 +147,7 @@ finishRefresh();
 === 替换bean核心
 方式一:通过instanceSupplier自定义直接的实例给spring.这种方式更强大.spring是优先通过这种方式获取bean实例.
 
-方式二:通过修改Bean的注册定义的Bean Class,后续就直接使用替换后BeanClass通过反射的方式实例化.这种方式很多时候是比较简单,但是如果原来的Bean是工厂方式的话,就无法直接替换了.
+方式二:通过修改Bean的注册定义的BeanClass,后续就直接使用替换后BeanClass通过反射的方式实例化.这种方式很多时候是比较简单,但是如果原来的Bean是工厂方式的话,就无法直接替换了.
 
 === 如何让切入点生效
 结合spring boot实现插件比较合适, 所以回到spring boot的启动过程org.springframework.boot.SpringApplication.run(java.lang.String...)
@@ -216,7 +197,7 @@ public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName
         Object factory = replaceInfo.getFactory();
         String clazz = replaceInfo.getClazz();
         if (method != null && factory != null) {
-            //通过工厂方法注册
+            //通过工厂方法直接生成实例
             if (beanDefinition instanceof AbstractBeanDefinition) {
                 Supplier<?> instanceSupplier = () -> ReflectionUtils.invokeMethod(method, factory);
                 ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(instanceSupplier);
@@ -224,14 +205,14 @@ public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName
                 throw new IllegalStateException("不支持的BeanDefinition类型:" + beanDefinition.getClass());
             }
         } else if (StringUtils.hasText(clazz)) {
-            //通过类扫描注册
+            //通过beanClass反射生成实例
             beanDefinition.setBeanClassName(clazz);
             if (beanDefinition instanceof AbstractBeanDefinition) {
                 //为了兼容spring aot,强制不使用InstanceSupplier
                 ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(null);
             }
         } else {
-            throw new IllegalStateException("supplier和clazz为空,替换失败");
+            throw new IllegalStateException("method和clazz为空,替换失败");
         }
     }
     return InstantiationAwareBeanPostProcessor.super.postProcessBeforeInstantiation(beanClass, beanName);
