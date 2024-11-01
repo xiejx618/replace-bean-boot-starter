@@ -1,0 +1,91 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.17 Chrome/128.0.6613.36 Electron/32.0.1 Safari/537.36" version="24.7.17">
+  <diagram id="BD3xrTWm_gT9q6y7Gc7G" name="第 2 页">
+    <mxGraphModel dx="978" dy="566" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-15" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;" parent="1" source="Y4kGnKrTrM8FJ7Lgk5u7-13" target="Y4kGnKrTrM8FJ7Lgk5u7-14" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-13" value="&lt;div style=&quot;line-height: 20%;&quot;&gt;&lt;div style=&quot;background-color: rgb(255, 255, 255); line-height: 120%;&quot;&gt;&lt;font color=&quot;#080808&quot;&gt;1.元信息注册&lt;br&gt;&amp;nbsp; 1.1配置阶段&lt;br&gt;&amp;nbsp; 1.2解析阶段&lt;br&gt;&amp;nbsp; 1.3注册到容器&lt;br&gt;&lt;/font&gt;&lt;/div&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;spacing=2;align=left;fontFamily=Helvetica;spacingLeft=2;" parent="1" vertex="1">
+          <mxGeometry x="47" y="80" width="340" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-17" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;" parent="1" source="Y4kGnKrTrM8FJ7Lgk5u7-14" target="Y4kGnKrTrM8FJ7Lgk5u7-16" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-19" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;" parent="1" source="Y4kGnKrTrM8FJ7Lgk5u7-16" target="Y4kGnKrTrM8FJ7Lgk5u7-18" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-16" value="&lt;div style=&quot;background-color: rgb(255, 255, 255);&quot;&gt;&lt;div style=&quot;&quot;&gt;&lt;font color=&quot;#080808&quot;&gt;3.初始化&lt;br&gt;&amp;nbsp;3.1初始化前置处理BeanPostProcessor&lt;br&gt;&amp;nbsp; #postProcessBeforeInitialization&lt;br&gt;&amp;nbsp;3.2初始化&lt;br&gt;&amp;nbsp;3.3初始化后置处理BeanPostProcessor&lt;br&gt;&amp;nbsp; #postProcessAfterInitialization&lt;/font&gt;&lt;/div&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=left;labelBorderColor=none;fontFamily=Helvetica;spacingLeft=2;" parent="1" vertex="1">
+          <mxGeometry x="46" y="362" width="341" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-21" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;" parent="1" source="Y4kGnKrTrM8FJ7Lgk5u7-18" target="Y4kGnKrTrM8FJ7Lgk5u7-20" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-18" value="&lt;div style=&quot;background-color:#ffffff;color:#080808&quot;&gt;&lt;div style=&quot;font-size: 9.8pt;&quot;&gt;4.使用&lt;/div&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=left;fontFamily=Helvetica;spacingLeft=2;" parent="1" vertex="1">
+          <mxGeometry x="46" y="511" width="341" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-43" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;fontFamily=Helvetica;" parent="1" source="Y4kGnKrTrM8FJ7Lgk5u7-20" target="Y4kGnKrTrM8FJ7Lgk5u7-42" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-20" value="&lt;div style=&quot;background-color:#ffffff;color:#080808&quot;&gt;&lt;div style=&quot;font-size: 9.8pt;&quot;&gt;5.销毁&lt;/div&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=left;fontFamily=Helvetica;spacingLeft=2;" parent="1" vertex="1">
+          <mxGeometry x="46" y="587" width="341" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-32" value="&lt;div&gt;bean定义容器&lt;/div&gt;&lt;div&gt;beanDefinitionMap&lt;/div&gt;" style="ellipse;whiteSpace=wrap;html=1;fontFamily=Helvetica;" parent="1" vertex="1">
+          <mxGeometry x="507" y="120" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-34" value="" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;" parent="1" source="Y4kGnKrTrM8FJ7Lgk5u7-13" target="Y4kGnKrTrM8FJ7Lgk5u7-32" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="757" y="320" as="sourcePoint" />
+            <mxPoint x="857" y="320" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-35" value="注册" style="edgeLabel;resizable=0;html=1;;align=center;verticalAlign=middle;fontFamily=Helvetica;" parent="Y4kGnKrTrM8FJ7Lgk5u7-34" connectable="0" vertex="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-37" value="" style="endArrow=classic;html=1;rounded=0;exitX=0.011;exitY=0.637;exitDx=0;exitDy=0;entryX=0.995;entryY=0.24;entryDx=0;entryDy=0;exitPerimeter=0;fontFamily=Helvetica;entryPerimeter=0;" parent="1" source="Y4kGnKrTrM8FJ7Lgk5u7-32" target="Y4kGnKrTrM8FJ7Lgk5u7-14" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="707" y="240" as="sourcePoint" />
+            <mxPoint x="807" y="240" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-38" value="获取" style="edgeLabel;resizable=0;html=1;;align=center;verticalAlign=middle;fontFamily=Helvetica;" parent="Y4kGnKrTrM8FJ7Lgk5u7-37" connectable="0" vertex="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-14" value="&lt;div style=&quot;background-color: rgb(255, 255, 255); line-height: 80%;&quot;&gt;&lt;div style=&quot;line-height: 120%;&quot;&gt;&lt;font&gt;&lt;font color=&quot;#080808&quot;&gt;2.实例化&lt;br&gt;&lt;/font&gt;&lt;font color=&quot;#66cc00&quot;&gt;&amp;nbsp;2.1实例化前置处理InstantiationAwareBeanPostProcessor&lt;br&gt;&amp;nbsp; &amp;nbsp;#postProcessBeforeInstantiation&lt;/font&gt;&lt;font color=&quot;#080808&quot;&gt;&lt;br&gt;&amp;nbsp;2.2实例化&lt;br&gt;&amp;nbsp;2.3实例化后置处理InstantiationAwareBeanPostProcessor&lt;br&gt;&amp;nbsp; &amp;nbsp;#postProcessAfterInstantiation&lt;br&gt;&amp;nbsp;2.4属性赋值&lt;br&gt;&amp;nbsp;2.5属性赋值后置处理InstantiationAwareBeanPostProcessor&lt;br&gt;&amp;nbsp; &amp;nbsp;#postProcessProperties&lt;br&gt;&lt;/font&gt;&lt;/font&gt;&lt;/div&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=left;fontFamily=Helvetica;spacingLeft=2;" parent="1" vertex="1">
+          <mxGeometry x="47" y="180" width="340" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-41" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Helvetica;" parent="1" source="Y4kGnKrTrM8FJ7Lgk5u7-40" target="Y4kGnKrTrM8FJ7Lgk5u7-13" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-40" value="开始" style="ellipse;whiteSpace=wrap;html=1;fontFamily=Helvetica;" parent="1" vertex="1">
+          <mxGeometry x="169.5" y="10" width="95" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-42" value="结束" style="ellipse;whiteSpace=wrap;html=1;fontFamily=Helvetica;" parent="1" vertex="1">
+          <mxGeometry x="169" y="661" width="95" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-45" value="1.实例化之前可以修改bean定义元信息;越后后面修改就越不合理,比如在初始化阶段再修改,会造成属性赋值失效,导致注入字段为null问题.&lt;br&gt;&lt;br&gt;2.获取到用户想要的bean修改信息.可能考虑到通过配置扫描方式,但配置扫描机制起来也是需要先启动,所以这个往往不适合太早阶段.&lt;br&gt;&lt;br&gt;3.基于以上两点,使用SpringBoot启动后的钩子,将修改信息收集起来,然后通过InstantiationAwareBeanPostProcessor#postProcessBeforeInstantiation修改bean定义元数据" style="text;align=center;verticalAlign=middle;rounded=0;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;whiteSpace=wrap;html=1;labelPosition=center;verticalLabelPosition=middle;fontFamily=Helvetica;" parent="1" vertex="1">
+          <mxGeometry x="407" y="310" width="380" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-46" value="修改bean定义&lt;br&gt;信息容器" style="ellipse;whiteSpace=wrap;html=1;fontFamily=Helvetica;" parent="1" vertex="1">
+          <mxGeometry x="507" y="220" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-47" value="获取" style="endArrow=classic;html=1;rounded=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;fontFamily=Helvetica;entryX=1;entryY=0.25;entryDx=0;entryDy=0;" parent="1" source="Y4kGnKrTrM8FJ7Lgk5u7-46" target="Y4kGnKrTrM8FJ7Lgk5u7-14" edge="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="506.9999999999999" y="281.25000000000006" as="sourcePoint" />
+            <mxPoint x="390" y="240" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-48" value="" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontFamily=Helvetica;whiteSpace=wrap;" parent="1" vertex="1">
+          <mxGeometry x="757" y="230" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4kGnKrTrM8FJ7Lgk5u7-49" value="提供" style="endArrow=classic;html=1;rounded=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;" parent="1" source="Y4kGnKrTrM8FJ7Lgk5u7-48" target="Y4kGnKrTrM8FJ7Lgk5u7-46" edge="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="687" y="320" as="sourcePoint" />
+            <mxPoint x="737" y="270" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -11,6 +11,7 @@ import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.Environment;
 import org.springframework.core.env.MutablePropertySources;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.CollectionUtils;
@@ -18,6 +19,7 @@ import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -28,10 +30,26 @@ public class ReplaceBeanInitializer implements ApplicationContextInitializer<Con
     private static final String PACKAGES = "replace.packages";
     private static final String FACTORIES = "replace.factories";
 
+    private static final String BOOTSTRAP_ENABLED_PROPERTY = "spring.cloud.bootstrap.enabled";
+    private static final String MARKER_CLASS = "org.springframework.cloud.bootstrap.marker.Marker";
+    private static final String USE_LEGACY_PROCESSING_PROPERTY = "spring.config.use-legacy-processing";
+    private static final AtomicInteger TIMES = new AtomicInteger(0);//进来次数
+
     @Override
     public void initialize(ConfigurableApplicationContext context) {
-        //1.获取替换Bean配置. 默认值不启用bean替换功能
         ConfigurableEnvironment environment = context.getEnvironment();
+        //如果启用了bootstrap,就只有第二次进来才处理,第一次和后面再进来都不处理. 主要为了拦住第一次,拿不到application.yaml
+        //没启用bootstrap,就只有第一次进来才处理,后面再进来都不处理
+        if (bootstrapEnabled(environment)) {
+            if (TIMES.incrementAndGet() != 2) {
+                return;
+            }
+        } else {
+            if (TIMES.incrementAndGet() != 1) {
+                return;
+            }
+        }
+        //1.获取替换Bean配置. 默认值不启用bean替换功能
         ReplaceProperties replaceProperties = Binder.get(environment)
                 .bind("replace", ReplaceProperties.class)
                 .orElse(new ReplaceProperties());
@@ -54,6 +72,15 @@ public class ReplaceBeanInitializer implements ApplicationContextInitializer<Con
             //父级可能还有父级,这里不知道有什么场景,所以就不循环了
             ((ConfigurableBeanFactory) parentBeanFactory).addBeanPostProcessor(replaceBeanPostProcessor);
         }
+    }
+
+    /**
+     * 是否启用bootstrap
+     */
+    private static boolean bootstrapEnabled(Environment environment) {
+        return environment.getProperty(BOOTSTRAP_ENABLED_PROPERTY, Boolean.class, false)
+                || ClassUtils.isPresent(MARKER_CLASS, null)
+                || environment.getProperty(USE_LEGACY_PROCESSING_PROPERTY, Boolean.class, false);
     }
 
     /**

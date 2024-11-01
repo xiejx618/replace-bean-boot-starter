@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
  */
 public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProcessor {
 
+    private static final String SCOPED_PROXY_FACTORY_BEAN = "org.springframework.aop.scope.ScopedProxyFactoryBean";
     private static final Map<String, ReplaceInfo> replaceMap = new HashMap<>();
 
     private final ConfigurableBeanFactory beanFactory;
@@ -39,34 +40,39 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
 
     @Override
     public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
-        //如果bean经过了scope代理,则取原beanName获取替换信息
+        //如果bean经过了scope代理,就取原beanName替换信息
         ReplaceInfo replaceInfo = replaceMap.get(ScopedProxyUtils.isScopedTarget(beanName) ?
                 ScopedProxyUtils.getOriginalBeanName(beanName) : beanName);
-        if (replaceInfo != null) {
-            BeanDefinition beanDefinition = beanFactory.getMergedBeanDefinition(beanName);
-            Method method = replaceInfo.getMethod();
-            Object factory = replaceInfo.getFactory();
-            String clazz = replaceInfo.getClazz();
-            if (method != null && factory != null) {
-                //通过工厂方法直接生成实例
-                if (beanDefinition instanceof AbstractBeanDefinition) {
-                    Supplier<?> instanceSupplier = () -> ReflectionUtils.invokeMethod(method, factory);
-                    ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(instanceSupplier);
-                } else {
-                    throw new IllegalStateException("不支持的BeanDefinition类型:" + beanDefinition.getClass());
-                }
-            } else if (StringUtils.hasText(clazz)) {
-                //通过beanClass反射生成实例
-                beanDefinition.setBeanClassName(clazz);
-                if (beanDefinition instanceof AbstractBeanDefinition) {
-                    //为了兼容spring aot,强制不使用InstanceSupplier
-                    ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(null);
-                }
-            } else {
-                throw new IllegalStateException("method和clazz为空,替换失败");
-            }
-            replaceInfo.replaced = true;
+        if (replaceInfo == null) {
+            return null;
         }
+        BeanDefinition beanDefinition = beanFactory.getMergedBeanDefinition(beanName);
+        //排除ScopedProxyFactoryBean替换
+        if (SCOPED_PROXY_FACTORY_BEAN.equals(beanDefinition.getBeanClassName())) {
+            return null;
+        }
+        Method method = replaceInfo.getMethod();
+        Object factory = replaceInfo.getFactory();
+        String clazz = replaceInfo.getClazz();
+        if (method != null && factory != null) {
+            //通过工厂方法直接生成实例
+            if (beanDefinition instanceof AbstractBeanDefinition) {
+                Supplier<?> instanceSupplier = () -> ReflectionUtils.invokeMethod(method, factory);
+                ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(instanceSupplier);
+            } else {
+                throw new IllegalStateException("不支持的BeanDefinition类型:" + beanDefinition.getClass());
+            }
+        } else if (StringUtils.hasText(clazz)) {
+            //通过beanClass反射生成实例
+            beanDefinition.setBeanClassName(clazz);
+            if (beanDefinition instanceof AbstractBeanDefinition) {
+                //为了兼容spring aot,强制不使用InstanceSupplier
+                ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(null);
+            }
+        } else {
+            throw new IllegalStateException("method和clazz为空,替换失败");
+        }
+        replaceInfo.replaced = true;
         return null;
     }
 

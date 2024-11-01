@@ -8,13 +8,17 @@ package io.github.xiejx618.replace.demo.service;
 
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
 
 
 @Service
 public class TestService {
-    @Resource
-    protected HelloService helloService;
+
+    protected final HelloService helloService;
+
+    public TestService(HelloService helloService) {
+        this.helloService = helloService;
+    }
+
 
     public void test() {
         System.out.println("调用了org.exam.demo.service.TestService.test," + "helloService的注入为" + helloService);

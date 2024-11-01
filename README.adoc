@@ -96,11 +96,16 @@ replace:
 === 通过@Bean声明的Bean如何替换?
 此类Bean实例时不是通过bean定义的beanClass实例化,而是通过bean工厂方法实例化,工厂实例化方式优先于beanClass实例化,即使替换了beanClass也无法替换bean逻辑. 所以此类Bean可以通过工厂方法实现替换,即是上面的方式一.
 
+=== 声明了@RefreshScope的Bean如何替换?
+这类bean会使用原beanName注册一个代理bean,同时也会注册一个"scopedTarget.+原beanName"的目标bean.在调用代理bean的时候,最终会调用目标bean,所以替换目标bean就可以. 注册到此组件的beanName还是应使用原beanName,组件会去掉"scopedTarget."获取替换信息.
+
 === 支持JDK,SpringBoot那些版本,Spring AOT是否也支持?
 JDK1.8和JDK17已验证可行; SpringBoot2.5.15,SpringBoot2.7.17,SpringBoot3.1.5已验证可行; Spring AOT也验证可行; 没验证的版本理论上也可行.
 
-=== 使用了Spring Cloud的@RefreshScope的Bean如何替换?
-这类bean会使用原beanName注册一个代理bean,同时也会注册一个"scopedTarget.+原beanName"的目标bean.在调用代理bean的时候,最终会调用目标bean,所以替换目标bean就可以. 注册到此组件的beanName还是应使用原beanName,组件会去掉"scopedTarget."获取替换信息.
+=== 那些Bean不能替换?
+. Bean定义
+. Bean定义的synthetic为true时(即合成Bean,一般为Spring在运行时生成的部分内部或代理Bean), 造成底层组件无法回调,进而替换无法生效.例如上述的@RefreshScope生成的代理Bean.
+
 
 == 需求分析
 需求分析和实现细节为选看内容,有几点需要考虑:a.从spring容器(无论是按名称还是按类型)获取当前Bean必须为替换后的Bean; b.如果某个Bean依赖之前的Bean,那之前的Bean也必须为替换后的Bean; c.无论单例或多例Bean,都应为替换后的Bean; d.一个Bean可以被多次替换;
