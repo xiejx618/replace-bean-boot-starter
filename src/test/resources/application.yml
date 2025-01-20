@@ -3,5 +3,3 @@ replace:
   enabled: true
   # 扫描替换Bean包名:可为空, 多个时使用逗号分割
   packages: io.github.xiejx618.replace.demo.ext
-  # 替换工厂配置类:可为空, 多个时使用英文逗号分割.
-  factories: io.github.xiejx618.replace.demo.ReplaceBeanConfig

@@ -17,12 +17,16 @@ import org.springframework.util.*;
 
 import java.beans.Introspector;
 import java.io.Serializable;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.*;
+import java.lang.reflect.Parameter;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * 处理所有Bean实例化前先检查是否有替换bean配置.如果有,就做替换.
@@ -52,12 +56,11 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
             return null;
         }
         Method method = replaceInfo.getMethod();
-        Object factory = replaceInfo.getFactory();
         String clazz = replaceInfo.getClazz();
-        if (method != null && factory != null) {
+        if (method != null) {
             //通过工厂方法直接生成实例
             if (beanDefinition instanceof AbstractBeanDefinition) {
-                Supplier<?> instanceSupplier = () -> ReflectionUtils.invokeMethod(method, factory);
+                Supplier<?> instanceSupplier = () -> ReflectionUtils.invokeMethod(method, null, replaceInfo.getArgs());
                 ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(instanceSupplier);
             } else {
                 throw new IllegalStateException("不支持的BeanDefinition类型:" + beanDefinition.getClass());
@@ -74,60 +77,6 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
         }
         replaceInfo.replaced = true;
         return null;
-    }
-
-    /**
-     * 通过工厂方法注册
-     *
-     * @param context   上下文
-     * @param factories 来源工厂实例
-     */
-    public static void registerFromFactory(ConfigurableApplicationContext context, List<Object> factories) {
-        if (CollectionUtils.isEmpty(factories)) {
-            return;
-        }
-        ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
-        ConfigurableEnvironment environment = context.getEnvironment();
-        for (Object factory : factories) {
-            List<Method> methods = Arrays.stream(factory.getClass().getDeclaredMethods())
-                    .filter(m -> Modifier.isPublic(m.getModifiers()) && !Modifier.isStatic(m.getModifiers())
-                            && m.isAnnotationPresent(Replace.class)).collect(Collectors.toList());
-            if (methods.isEmpty()) {
-                continue;
-            }
-            injectFactoryFields(factory, beanFactory, environment);
-            for (Method method : methods) {
-                Replace annotation = method.getAnnotation(Replace.class);
-                String beanName = StringUtils.hasText(annotation.value()) ? annotation.value() : method.getName();
-                ReplaceInfo replaceInfo = replaceMap.get(beanName);
-                int order = annotation.order();
-                if (replaceInfo == null || order < replaceInfo.getOrder()) {
-                    replaceMap.put(beanName, new ReplaceInfo(order, method, factory));
-                }
-            }
-        }
-    }
-
-    /**
-     * 注入工厂的beanFactory和environment
-     *
-     * @param factory     替换工厂实例
-     * @param beanFactory bean工厂
-     * @param environment 环境
-     */
-    private static void injectFactoryFields(Object factory, ConfigurableListableBeanFactory beanFactory,
-                                            ConfigurableEnvironment environment) {
-        Field[] fields = factory.getClass().getDeclaredFields();
-        for (Field field : fields) {
-            Class<?> type = field.getType();
-            if (type.isAssignableFrom(ConfigurableListableBeanFactory.class)) {
-                ReflectionUtils.makeAccessible(field);
-                ReflectionUtils.setField(field, factory, beanFactory);
-            } else if (type.isAssignableFrom(ConfigurableEnvironment.class)) {
-                ReflectionUtils.makeAccessible(field);
-                ReflectionUtils.setField(field, factory, environment);
-            }
-        }
     }
 
     /**
@@ -148,21 +97,84 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
                 for (Resource resource : resources) {
                     AnnotationMetadata metadata = readerFactory.getMetadataReader(resource).getAnnotationMetadata();
                     Map<String, Object> attributes = metadata.getAnnotationAttributes(Replace.class.getName());
-                    if (attributes != null) {
-                        String superClassName = metadata.getSuperClassName();
-                        Assert.isTrue(StringUtils.hasText(superClassName), "替换bean的类不能没有父类");
-                        String beanName = deduceBeanName(attributes, superClassName);
-                        ReplaceInfo replaceInfo = replaceMap.get(beanName);
-                        int order = (int) attributes.get("order");
-                        if (replaceInfo == null || order < replaceInfo.getOrder()) {
-                            replaceMap.put(beanName, new ReplaceInfo(order, metadata.getClassName()));
-                        }
+                    if (attributes == null) {
+                        continue;
                     }
+                    String superClassName = metadata.getSuperClassName();
+                    Assert.isTrue(StringUtils.hasText(superClassName), "替换bean的类不能没有父类");
+                    String beanName = deduceBeanName(attributes, superClassName);
+                    ReplaceInfo replaceInfo = replaceMap.get(beanName);
+                    int order = (int) attributes.get("order");
+                    if (replaceInfo != null && order >= replaceInfo.getOrder()) {
+                        continue;
+                    }
+                    String instantiateMethod = (String) attributes.get("instantiateMethod");
+                    String className = metadata.getClassName();
+                    register(context, beanName, order, className, instantiateMethod);
                 }
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    /**
+     * 根据指定类和名称查找唯一的静态方法
+     *
+     * @param clazz 要找的类
+     * @param name  方法名
+     * @return 找到的方法
+     * @throws NoSuchMethodException 找不到方法异常
+     */
+    private static Method findUniqueStaticMethod(Class<?> clazz, String name) throws NoSuchMethodException {
+        Method method = Stream.of(clazz.getDeclaredMethods())
+                .filter(m -> Modifier.isStatic(m.getModifiers()) && m.getName().equals(name))
+                .reduce((m1, m2) -> {
+                    throw new IllegalArgumentException("在" + clazz.getCanonicalName() + "类找到" + name + "方法多于一个");
+                }).orElseThrow(() -> new NoSuchMethodException(
+                        "在" + clazz.getCanonicalName() + "类上找不到静态的" + name + "方法"));
+        if (!Modifier.isPublic(method.getModifiers())) {
+            method.setAccessible(true);
+        }
+        return method;
+    }
+
+    /**
+     * 最终注册替换信息
+     *
+     * @param context    ConfigurableApplicationContext
+     * @param beanName   bean名称
+     * @param order      顺序
+     * @param className  扩展类名
+     * @param methodName 静态实例化方法名
+     * @throws ClassNotFoundException 找不到扩展类时会抛此异常
+     * @throws NoSuchMethodException  找不到静态实例方法会抛此异常
+     */
+    private static void register(ConfigurableApplicationContext context, String beanName, int order, String className,
+                                 String methodName) throws ClassNotFoundException, NoSuchMethodException {
+        if (!StringUtils.hasText(methodName)) {
+            replaceMap.put(beanName, new ReplaceInfo(order, className));
+            return;
+        }
+        Method method = findUniqueStaticMethod(Class.forName(className), methodName);
+        int paramCount = method.getParameterCount();
+        Object[] args = new Object[paramCount];
+        if (paramCount > 0) {
+            Parameter[] parameters = method.getParameters();
+            for (int i = 0; i < paramCount; i++) {
+                Class<?> type = parameters[i].getType();
+                if (type.isAssignableFrom(ConfigurableApplicationContext.class)) {
+                    args[i] = context;
+                } else if (type.isAssignableFrom(ConfigurableListableBeanFactory.class)) {
+                    args[i] = context.getBeanFactory();
+                } else if (type.isAssignableFrom(ConfigurableEnvironment.class)) {
+                    args[i] = context.getEnvironment();
+                } else {
+                    throw new IllegalArgumentException("不支持的方法[" + className + "#" + methodName + "]参数类型" + type);
+                }
+            }
+        }
+        replaceMap.put(beanName, new ReplaceInfo(order, className, method, args));
     }
 
     /**
@@ -203,12 +215,16 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
                 .map(Map.Entry::getKey).collect(Collectors.toList());
     }
 
+    /**
+     * 替换信息
+     */
     static class ReplaceInfo implements Serializable {
         //顺序
         private final int order;
-        //实例化工厂方法和工厂实例
+        //实例化Bean方法
         private final Method method;
-        private final Object factory;
+        //使用的参数
+        private final Object[] args;
         //实例class
         private final String clazz;
         //是否已替换
@@ -222,33 +238,29 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
             return method;
         }
 
-        public Object getFactory() {
-            return factory;
+        public Object[] getArgs() {
+            return args;
         }
 
         public String getClazz() {
             return clazz;
         }
 
-        //通过clazz方式
+        //通过beanClass方式
         public ReplaceInfo(int order, String clazz) {
-            this.order = order;
-            this.clazz = clazz;
-            this.method = null;
-            this.factory = null;
+            this(order, clazz, null, null);
         }
 
-        //通过工厂方式
-        public ReplaceInfo(int order, Method method, Object factory) {
+        //通过自定义实例化方法
+        public ReplaceInfo(int order, String clazz, Method method, Object[] params) {
             this.order = order;
+            this.clazz = clazz;
             this.method = method;
-            this.factory = factory;
-            this.clazz = null;
+            this.args = params;
         }
 
         public String print() {
-            return (method != null && factory != null ? factory.getClass().getName() + "#" + method.getName()
-                    : clazz) + "[" + order + "]";
+            return clazz + "[" + order + (method != null ? "," + method.getName() : "") + "]";
         }
     }
 }

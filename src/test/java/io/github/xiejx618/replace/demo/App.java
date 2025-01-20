@@ -1,9 +1,6 @@
 package io.github.xiejx618.replace.demo;
 
-import io.github.xiejx618.replace.demo.service.HelloService;
-import io.github.xiejx618.replace.demo.service.TestOrderedBeanPostProcessor;
-import io.github.xiejx618.replace.demo.service.TestPriorityOrderedBeanPostProcessor;
-import io.github.xiejx618.replace.demo.service.TestService;
+import io.github.xiejx618.replace.demo.service.*;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -35,6 +32,11 @@ public class App {
         //验证PriorityOrderedBeanPostProcessor替换是否生效
         TestPriorityOrderedBeanPostProcessor testPriorityOrdered = context.getBean(TestPriorityOrderedBeanPostProcessor.class);
         testPriorityOrdered.test();
+
+
+        //验证@Bean替换是否生效
+        BeanService beanService = context.getBean(BeanService.class);
+        beanService.sayHello();
 
         System.out.println("耗时(毫秒) = " + (System.currentTimeMillis()-start));
     }

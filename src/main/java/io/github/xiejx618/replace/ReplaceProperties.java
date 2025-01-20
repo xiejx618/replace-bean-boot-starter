@@ -12,10 +12,6 @@ public class ReplaceProperties {
      * 扫描包
      */
     private String packages;
-    /**
-     * 工厂类
-     */
-    private String factories;
 
     public boolean isEnabled() {
         return enabled;
@@ -31,13 +27,5 @@ public class ReplaceProperties {
 
     public void setPackages(String packages) {
         this.packages = packages;
-    }
-
-    public String getFactories() {
-        return factories;
-    }
-
-    public void setFactories(String factories) {
-        this.factories = factories;
     }
 }

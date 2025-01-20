@@ -12,12 +12,6 @@
       "type": "java.lang.String",
       "sourceType": "io.github.xiejx618.replace.ReplaceProperties",
       "description": "扫描替换Bean包名:可为空, 多个时使用英文逗号分割. 多个配置时, 则叠加"
-    },
-    {
-      "name": "replace.factories",
-      "type": "java.lang.String",
-      "sourceType": "io.github.xiejx618.replace.ReplaceProperties",
-      "description": "替换工厂配置类:可为空, 多个时使用英文逗号分割. 多个配置时, 则叠加"
     }
   ],
   "hints": []
