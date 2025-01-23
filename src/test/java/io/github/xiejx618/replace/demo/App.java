@@ -1,9 +1,11 @@
 package io.github.xiejx618.replace.demo;
 
+import io.github.xiejx618.replace.demo.ext.*;
 import io.github.xiejx618.replace.demo.service.*;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.util.Assert;
 
 @SpringBootApplication
 public class App {
@@ -20,23 +22,28 @@ public class App {
         System.out.println("再次获取helloService = " + helloService);
         //调用sayHello方法
         helloService.sayHello();
+        Assert.isTrue(helloService instanceof HelloServiceExt, "helloService替换失败");
 
         //验证依赖注入是否生效
         TestService testService = context.getBean(TestService.class);
         testService.test();
-
-        //验证OrderedBeanPostProcessor替换是否生效
-        TestOrderedBeanPostProcessor testOrdered = context.getBean(TestOrderedBeanPostProcessor.class);
-        testOrdered.test();
-
-        //验证PriorityOrderedBeanPostProcessor替换是否生效
-        TestPriorityOrderedBeanPostProcessor testPriorityOrdered = context.getBean(TestPriorityOrderedBeanPostProcessor.class);
-        testPriorityOrdered.test();
-
+        Assert.isTrue(testService instanceof TestServiceExt, "testService替换失败");
 
         //验证@Bean替换是否生效
         BeanService beanService = context.getBean(BeanService.class);
         beanService.sayHello();
+        Assert.isTrue(beanService instanceof BeanServiceExt,"beanService替换失败");
+
+        //验证OrderedBeanPostProcessor替换是否生效
+        TestOrderedBeanPostProcessor testOrdered = context.getBean(TestOrderedBeanPostProcessor.class);
+        testOrdered.test();
+        Assert.isTrue(testOrdered instanceof TestOrderedBeanPostProcessorExt, "testOrderedBeanPostProcessor替换失败");
+
+        //验证PriorityOrderedBeanPostProcessor替换是否生效
+        TestPriorityOrderedBeanPostProcessor testPriorityOrdered = context.getBean(TestPriorityOrderedBeanPostProcessor.class);
+        testPriorityOrdered.test();
+        Assert.isTrue(testPriorityOrdered instanceof TestPriorityOrderedBeanPostProcessorExt,
+                "testPriorityOrderedBeanPostProcessor替换失败");
 
         System.out.println("耗时(毫秒) = " + (System.currentTimeMillis()-start));
     }
