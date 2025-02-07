@@ -56,7 +56,6 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
             return null;
         }
         Method method = replaceInfo.getMethod();
-        String clazz = replaceInfo.getClazz();
         if (method != null) {
             //通过工厂方法直接生成实例
             if (beanDefinition instanceof AbstractBeanDefinition) {
@@ -65,15 +64,13 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
             } else {
                 throw new IllegalStateException("不支持的BeanDefinition类型:" + beanDefinition.getClass());
             }
-        } else if (StringUtils.hasText(clazz)) {
+        } else {
             //通过beanClass反射生成实例
-            beanDefinition.setBeanClassName(clazz);
+            beanDefinition.setBeanClassName(replaceInfo.getClazz());
             if (beanDefinition instanceof AbstractBeanDefinition) {
                 //为了兼容spring aot,强制不使用InstanceSupplier
                 ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(null);
             }
-        } else {
-            throw new IllegalStateException("method和clazz为空,替换失败");
         }
         replaceInfo.replaced = true;
         return null;
@@ -108,9 +105,9 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
                     if (replaceInfo != null && order >= replaceInfo.getOrder()) {
                         continue;
                     }
-                    String instantiateMethod = (String) attributes.get("instantiateMethod");
                     String className = metadata.getClassName();
-                    register(context, beanName, order, className, instantiateMethod);
+                    String instantiateMethod = (String) attributes.get("instantiateMethod");
+                    register(beanName, order, className, instantiateMethod, context);
                 }
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -145,13 +142,13 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
      * @param context    ConfigurableApplicationContext
      * @param beanName   bean名称
      * @param order      顺序
-     * @param className  扩展类名
+     * @param className  替换类名
      * @param methodName 静态实例化方法名
-     * @throws ClassNotFoundException 找不到扩展类时会抛此异常
+     * @throws ClassNotFoundException 找不到替换类时会抛此异常
      * @throws NoSuchMethodException  找不到静态实例方法会抛此异常
      */
-    private static void register(ConfigurableApplicationContext context, String beanName, int order, String className,
-                                 String methodName) throws ClassNotFoundException, NoSuchMethodException {
+    private static void register(String beanName, int order, String className, String methodName,
+                                 ConfigurableApplicationContext context) throws ClassNotFoundException, NoSuchMethodException {
         if (!StringUtils.hasText(methodName)) {
             replaceMap.put(beanName, new ReplaceInfo(order, className));
             return;
@@ -186,10 +183,7 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
      */
     private static String deduceBeanName(Map<String, Object> attributes, String superClassName) {
         String beanName = (String) attributes.get("value");
-        if (StringUtils.hasText(beanName)) {
-            return beanName;
-        }
-        return Introspector.decapitalize(ClassUtils.getShortName(superClassName));
+        return StringUtils.hasText(beanName) ? beanName : Introspector.decapitalize(ClassUtils.getShortName(superClassName));
     }
 
     /**
@@ -221,17 +215,21 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
     static class ReplaceInfo implements Serializable {
         //顺序
         private final int order;
+        //替换class
+        private final String clazz;
         //实例化Bean方法
         private final Method method;
         //使用的参数
         private final Object[] args;
-        //实例class
-        private final String clazz;
         //是否已替换
         private boolean replaced;
 
         public int getOrder() {
             return order;
+        }
+
+        public String getClazz() {
+            return clazz;
         }
 
         public Method getMethod() {
@@ -240,10 +238,6 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
 
         public Object[] getArgs() {
             return args;
-        }
-
-        public String getClazz() {
-            return clazz;
         }
 
         //通过beanClass方式
