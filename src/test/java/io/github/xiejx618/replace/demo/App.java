@@ -12,8 +12,16 @@ public class App {
 
     public static void main(String[] args) {
         long start = System.currentTimeMillis();
-
         ConfigurableApplicationContext context = SpringApplication.run(App.class, args);
+        test(context);
+        System.out.println("耗时(毫秒) = " + (System.currentTimeMillis()-start));
+    }
+
+    private static void test(ConfigurableApplicationContext context) {
+        Boolean enabled = context.getEnvironment().getProperty("replace.enabled", Boolean.class);
+        if (!Boolean.TRUE.equals(enabled)) {
+            return;
+        }
         //第一次获取
         HelloService helloService = context.getBean(HelloService.class);
         System.out.println("获取helloService = " + helloService);
@@ -44,7 +52,5 @@ public class App {
         testPriorityOrdered.test();
         Assert.isTrue(testPriorityOrdered instanceof TestPriorityOrderedBeanPostProcessorExt,
                 "testPriorityOrderedBeanPostProcessor替换失败");
-
-        System.out.println("耗时(毫秒) = " + (System.currentTimeMillis()-start));
     }
 }

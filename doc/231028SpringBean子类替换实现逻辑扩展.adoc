@@ -54,7 +54,7 @@ public class HelloServiceExt extends HelloService {
 
 . value: 需要替换的Bean的beanName.当没指定时, 会从父类名推断;
 . order: 如果一个Bean被多次扩展时, 就选择排序最小值的类. 值范围为-2147483648和2147483647.
-. instantiateMethod: 如果一个bean通过以上方式不能替换,就考虑此方式. 指定的扩展类的静态实例化方法名称. 当有指定时,从这个静态方法实例化替换对象,对于@Bean声明的Bean, 可以使用此方式自定义Bean实例生成. 以下是一个使用instantiateMethod的例子
+. instantiateMethod: 指定的扩展类的静态实例化方法名称. 用于自定义生成bean实例, 一般不需要指定. 不指定时会推定使用的构造函数实例化, 多个构造函数时,会选择第一个标有@Autowire的构造函数实例化. 当有指定时,从这个静态方法实例化替换对象. 以下是一个使用instantiateMethod的例子
 
 [source,java]
 ----
@@ -93,9 +93,6 @@ b. 方法参数可以声明为ConfigurableApplicationContext,ConfigurableListabl
 == 常见问题
 === 适用那些项目场景?
 以Spring Boot为基础的项目, 通过@Component,@Service,@Repository,@Controller,@Bean等声明的Bean都可以替换. 除了spring内部极少数Bean(如org.springframework.context.annotation.internalConfigurationAnnotationProcessor,org.springframework.aop.scope.ScopedProxyFactoryBean), 其他方式注册的Bean也可以替换.
-
-=== 通过@Bean声明的Bean如何替换?
-此类Bean实例时不是通过Bean定义的beanClass实例化,而是通过bean工厂方法实例化,工厂实例化方式优先于beanClass实例化,即使替换了beanClass也无法替换Bean逻辑. 所以此类Bean可以通过@Replace的instantiateMethod自定义实例化Bean.
 
 === 支持JDK,SpringBoot那些版本,Spring AOT是否也支持?
 JDK1.8和JDK17已验证可行; SpringBoot2.5.15,SpringBoot2.7.17,SpringBoot3.1.5已验证可行; Spring AOT也验证可行; 没验证的版本不代表不可行.
@@ -174,9 +171,7 @@ finishRefresh();
 只有向spring容器注册了InstantiationAwareBeanPostProcessor,getBean时才会让注入的逻辑生效且越早越好.
 
 === 替换bean核心
-方式一:通过instanceSupplier自定义直接的实例给spring.这种方式更强大.spring是优先通过这种方式获取Bean实例.
-
-方式二:通过修改Bean的注册定义的BeanClass,后续就直接使用替换后BeanClass通过反射的方式实例化.这种方式很多时候是比较简单,但是如果原来的Bean是工厂方式的话,就无法直接替换了.
+通过instanceSupplier自定义实例化Bean逻辑.
 
 === 如何让切入点生效
 结合spring boot实现插件比较合适, 所以回到spring boot的启动过程org.springframework.boot.SpringApplication.run(java.lang.String...)
@@ -218,43 +213,11 @@ bootstrapContext.close(context);
 .  下面就是修改BeanDefinition的逻辑
 +
 ----
-public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
-    //如果bean经过了scope代理,就取原beanName替换信息
-    ReplaceInfo replaceInfo = replaceMap.get(ScopedProxyUtils.isScopedTarget(beanName) ?
-            ScopedProxyUtils.getOriginalBeanName(beanName) : beanName);
-    if (replaceInfo == null) {
-        return null;
-    }
-    BeanDefinition beanDefinition = beanFactory.getMergedBeanDefinition(beanName);
-    //排除ScopedProxyFactoryBean替换
-    if (SCOPED_PROXY_FACTORY_BEAN.equals(beanDefinition.getBeanClassName())) {
-        return null;
-    }
-    Method method = replaceInfo.getMethod();
-    Object factory = replaceInfo.getFactory();
-    String clazz = replaceInfo.getClazz();
-    if (method != null && factory != null) {
-        //通过工厂方法直接生成实例
-        if (beanDefinition instanceof AbstractBeanDefinition) {
-            Supplier<?> instanceSupplier = () -> ReflectionUtils.invokeMethod(method, factory);
-            ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(instanceSupplier);
-        } else {
-            throw new IllegalStateException("不支持的BeanDefinition类型:" + beanDefinition.getClass());
-        }
-    } else if (StringUtils.hasText(clazz)) {
-        //通过beanClass反射生成实例
-        beanDefinition.setBeanClassName(clazz);
-        if (beanDefinition instanceof AbstractBeanDefinition) {
-            //为了兼容spring aot,强制不使用InstanceSupplier
-            ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(null);
-        }
-    } else {
-        throw new IllegalStateException("method和clazz为空,替换失败");
-    }
-    replaceInfo.replaced = true;
-    return null;
-}
+BeanDefinition beanDefinition = beanFactory.getMergedBeanDefinition(beanName);
+
+ ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(instanceSupplier(replaceInfo));
 ----
+instanceSupplier如果有指定方法法, 使用指定方法; 否则, 从构造函数创建.
 
 . Bean实例化用的是MergedBeanDefinition,所以使用beanFactory.getMergedBeanDefinition,而不是beanFactory.getBeanDefinition
 

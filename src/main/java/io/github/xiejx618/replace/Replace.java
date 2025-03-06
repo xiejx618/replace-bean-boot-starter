@@ -30,8 +30,8 @@ public @interface Replace {
     int order() default Integer.MAX_VALUE;
 
     /**
-     * 指定的替换类的静态实例化方法名称,一般不指定就可生效,建议不指定.
-     * 当有指定时,使用这个静态方法实例化Bean对象,对于@Bean声明的Bean,需使用此方式替换;
+     * 指定的替换类的静态实例化方法名称,不指定时, 使用推断的构造函数实例化.
+     * 当有指定时,使用这个静态方法实例化Bean对象, 对于@Bean声明的Bean, 需使用此方式替换;
      *
      * @return 实例化方法名称
      *

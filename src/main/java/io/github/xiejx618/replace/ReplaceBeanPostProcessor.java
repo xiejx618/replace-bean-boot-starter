@@ -2,6 +2,8 @@ package io.github.xiejx618.replace;
 
 import org.springframework.aop.scope.ScopedProxyUtils;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
@@ -17,13 +19,11 @@ import org.springframework.util.*;
 
 import java.beans.Introspector;
 import java.io.Serializable;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -36,10 +36,14 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
     private static final String SCOPED_PROXY_FACTORY_BEAN = "org.springframework.aop.scope.ScopedProxyFactoryBean";
     private static final Map<String, ReplaceInfo> replaceMap = new HashMap<>();
 
+    private final ConfigurableApplicationContext applicationContext;
     private final ConfigurableBeanFactory beanFactory;
+    private final ConfigurableEnvironment environment;
 
-    public ReplaceBeanPostProcessor(ConfigurableBeanFactory beanFactory) {
-        this.beanFactory = beanFactory;
+    public ReplaceBeanPostProcessor(ConfigurableApplicationContext applicationContext) {
+        this.applicationContext = applicationContext;
+        this.beanFactory = applicationContext.getBeanFactory();
+        this.environment = applicationContext.getEnvironment();
     }
 
     @Override
@@ -55,25 +59,52 @@ public class ReplaceBeanPostProcessor implements InstantiationAwareBeanPostProce
         if (SCOPED_PROXY_FACTORY_BEAN.equals(beanDefinition.getBeanClassName())) {
             return null;
         }
-        Method method = replaceInfo.getMethod();
-        if (method != null) {
-            //通过工厂方法直接生成实例
-            if (beanDefinition instanceof AbstractBeanDefinition) {
-                Supplier<?> instanceSupplier = () -> ReflectionUtils.invokeMethod(method, null, replaceInfo.getArgs());
-                ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(instanceSupplier);
-            } else {
-                throw new IllegalStateException("不支持的BeanDefinition类型:" + beanDefinition.getClass());
-            }
-        } else {
-            //通过beanClass反射生成实例
-            beanDefinition.setBeanClassName(replaceInfo.getClazz());
-            if (beanDefinition instanceof AbstractBeanDefinition) {
-                //为了兼容spring aot,强制不使用InstanceSupplier
-                ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(null);
-            }
-        }
+        Assert.isTrue(beanDefinition instanceof AbstractBeanDefinition, beanDefinition.getClass() + "不是AbstractBeanDefinition");
+        ((AbstractBeanDefinition) beanDefinition).setInstanceSupplier(instanceSupplier(replaceInfo));
         replaceInfo.replaced = true;
         return null;
+    }
+
+    /**
+     * 获取实例化函数
+     */
+    private Supplier<?> instanceSupplier(ReplaceInfo replaceInfo) {
+        Method method = replaceInfo.getMethod();
+        if (method != null) {
+            return () -> ReflectionUtils.invokeMethod(method, null, replaceInfo.getArgs());
+        }
+        return () -> {
+            try {
+                String clazz = replaceInfo.getClazz();
+                Constructor<?>[] ctors = Class.forName(clazz).getConstructors();
+                Assert.isTrue(ctors.length > 0, clazz + "找不到构造函数");
+                Constructor<?> constructor = ctors[0];
+                if (ctors.length > 1) {// 如果有多个构造函数，寻找第一个带@Autowired注解的
+                    constructor = Arrays.stream(ctors).filter(c -> c.isAnnotationPresent(Autowired.class))
+                            .findFirst().orElseThrow(() -> new IllegalStateException("多个构造函数时,可使用@Autowired指定构造函数"));
+                }
+                Parameter[] params = constructor.getParameters();
+                Object[] args = params == null || params.length == 0 ? new Object[0] : Arrays.stream(params).map(p -> {
+                    Class<?> pType = p.getType();
+                    if (pType.isAssignableFrom(ConfigurableApplicationContext.class)) {
+                        return applicationContext;
+                    } else if (pType.isAssignableFrom(ConfigurableListableBeanFactory.class)) {
+                        return beanFactory;
+                    } else if (pType.isAssignableFrom(ConfigurableEnvironment.class)) {
+                        return environment;
+                    } else if (p.isAnnotationPresent(Value.class)) {
+                        String value = environment.resolvePlaceholders(p.getAnnotation(Value.class).value());
+                        return ClassUtils.isAssignableValue(pType, value) ? value :
+                                environment.getConversionService().convert(value, pType);
+                    } else {
+                        return beanFactory.getBean(pType);
+                    }
+                }).toArray();
+                return constructor.newInstance(args);
+            } catch (Exception e) {
+                throw new RuntimeException("构造函数实例化bean失败", e);
+            }
+        };
     }
 
     /**

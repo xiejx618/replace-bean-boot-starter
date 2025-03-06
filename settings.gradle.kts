@@ -4,7 +4,7 @@ pluginManagement {
         maven("https://maven.aliyun.com/repository/gradle-plugin/")
         //maven("https://oss.sonatype.org/content/repositories/releases/")
         //maven("https://plugins.gradle.org/m2")
-        //gradlePluginPortal()
+        gradlePluginPortal()
     }
 }
 

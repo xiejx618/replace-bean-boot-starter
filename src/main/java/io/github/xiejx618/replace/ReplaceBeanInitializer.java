@@ -61,7 +61,7 @@ public class ReplaceBeanInitializer implements ApplicationContextInitializer<Con
         logger.info(AnsiOutput.toString(AnsiColor.GREEN, ReplaceBeanPostProcessor.replaceMapToString(true)));
         //4.将ReplaceBeanPostProcessor添加到Spring容器;
         ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
-        ReplaceBeanPostProcessor replaceBeanPostProcessor = new ReplaceBeanPostProcessor(beanFactory);
+        ReplaceBeanPostProcessor replaceBeanPostProcessor = new ReplaceBeanPostProcessor(context);
         beanFactory.addBeanPostProcessor(replaceBeanPostProcessor);
         BeanFactory parentBeanFactory = beanFactory.getParentBeanFactory();
         if (parentBeanFactory instanceof ConfigurableBeanFactory) {
