@@ -23,7 +23,7 @@ replace-bean.version可选用最新版本.
 ----
 
 === 配置
-放在spring配置文件或配置中心中配置. enabled以配置优先级决定是否启用; packages多处配置时,会做叠加处理.
+放在spring配置文件或配置中心中配置. enabled:以配置优先级决定是否启用; packages:多处配置时,会做叠加处理.
 [source,yaml]
 ----
 replace:
@@ -54,7 +54,7 @@ public class HelloServiceExt extends HelloService {
 
 . value: 需要替换的Bean的beanName.当没指定时, 会从父类名推断;
 . order: 如果一个Bean被多次扩展时, 就选择排序最小值的类. 值范围为-2147483648和2147483647.
-. instantiateMethod: 指定的扩展类的静态实例化方法名称. 用于自定义生成bean实例, 一般不需要指定. 不指定时会推定使用的构造函数实例化, 多个构造函数时,会选择第一个标有@Autowire的构造函数实例化. 当有指定时,从这个静态方法实例化替换对象. 以下是一个使用instantiateMethod的例子
+. instantiateMethod: 指定的扩展类的静态实例化方法名称. 当有指定时,使用这个静态方法实例化Bean对象; 一般不推荐使用此配置, 后面可能会移除此配置. 不指定时, 使用推断的构造函数实例化. 以下是一个使用instantiateMethod的例子
 
 [source,java]
 ----
@@ -139,39 +139,39 @@ JDK1.8和JDK17已验证可行; SpringBoot2.5.15,SpringBoot2.7.17,SpringBoot3.1.5
 ----
 // 1.刷新上下文环境
 prepareRefresh();
-// 2.初始化 beanFactory，对配置文件进行解读
+// 2.初始化 beanFactory, 对配置文件进行解读
 ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
 // 3.对 beanFactory 进行功能扩展
 prepareBeanFactory(beanFactory);
-// 4.专门留给子类作扩展用，这是一个空的方法
+// 4.专门留给子类作扩展用, 这是一个空的方法
 postProcessBeanFactory(beanFactory);
 // 5.注册并执行 BeanFactoryPostProcessor 后置处理器
 invokeBeanFactoryPostProcessors(beanFactory);
-// 6.注册 BeanPostProcessor 后置处理器，在 getBean() 创建 bean 时调用
+// 6.注册 BeanPostProcessor 后置处理器, 在 getBean() 创建 bean 时调用
 registerBeanPostProcessors(beanFactory);
-// 7.初始化 Message 源，即不同语言消息体，国际化处理
+// 7.初始化 Message 源, 即不同语言消息体, 国际化处理
 initMessageSource();
-// 8.注册多播器，事件监听器的管理者
+// 8.注册多播器, 事件监听器的管理者
 initApplicationEventMulticaster();
-// 9.专门留给子类初始化其它 bean 用，这是一个空的方法
+// 9.专门留给子类初始化其它 bean 用, 这是一个空的方法
 onRefresh();
 // 10.注册监听器
 registerListeners();
 // 11.初始化剩余的 bean (部分在 invokeBeanFactoryPostProcessors 已经初始化)
 finishBeanFactoryInitialization(beanFactory);
-// 12.完成刷新，通知生命周期处理器 LifecycleProcessor 刷新过程，同时发布 ContextRefreshedEvent 通知别人
+// 12.完成刷新, 通知生命周期处理器 LifecycleProcessor 刷新过程, 同时发布 ContextRefreshedEvent 通知别人
 finishRefresh();
 ----
 . 单例Bean实例初始化一次,多次获取都为同一个对象; 多例Bean,多次获取会多次实例初始化;
 . Bean的生命周期并不是对齐上面过程, 因此并不能简单只看上下文运行过程.
-. Bean的注册可能在上面过程的beanFactory准备好后的任意某个点，bean的初始化(getBean)也有可能出现在上面过程的某个点.
+. Bean的注册可能在上面过程的beanFactory准备好后的任意某个点, bean的初始化(getBean)也有可能出现在上面过程的某个点.
 . 焦点在于Bean的生命周期实例化之前阶段(上面的阶段6),上面的阶段1-3不在getBean内.
 . 所以,范围缩小在阶段4-6找切入点(回调或勾子). 针对已有的切入点,最终找出InstantiationAwareBeanPostProcessor的postProcessBeforeInstantiation阶段修改逻辑比较适合.
 
 只有向spring容器注册了InstantiationAwareBeanPostProcessor,getBean时才会让注入的逻辑生效且越早越好.
 
 === 替换bean核心
-通过instanceSupplier自定义实例化Bean逻辑.
+通过instanceSupplier实例化替换类对象, 达到替换Bean逻辑目的.
 
 === 如何让切入点生效
 结合spring boot实现插件比较合适, 所以回到spring boot的启动过程org.springframework.boot.SpringApplication.run(java.lang.String...)
